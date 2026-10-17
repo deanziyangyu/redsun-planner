@@ -34,27 +34,22 @@ jobs:
         run: uv run --group dev mypy
 
   tests:
-    name: Tests ${{ matrix.python-version }} / ${{ matrix.extras }}
+    name: Tests ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
         python-version: ["3.10", "3.11", "3.12"]
-        extras: ["", "--extra registration"]
         include:
           - os: windows-latest
             python-version: "3.10"
-            extras: ""
           - os: windows-latest
             python-version: "3.12"
-            extras: "--extra registration"
           - os: macos-latest
             python-version: "3.10"
-            extras: ""
           - os: macos-latest
             python-version: "3.12"
-            extras: "--extra registration"
     steps:
       - uses: actions/checkout@v7
 
@@ -65,10 +60,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install the project
-        run: uv sync --group test ${{ matrix.extras }}
+        run: uv sync --group test
 
       - name: Run the tests
-        run: uv run --group test ${{ matrix.extras }} pytest -q
+        run: uv run --group test pytest -q
 
   build:
     name: Build the distributions
