@@ -86,7 +86,7 @@ Runnable, device-free snippets: [examples/](examples/README.md).
 
 ## Plans
 
-[`planner.plans`](docs/bluesky_plans.md) composes Bluesky plan stubs for four
+[`planner.plans`](src/planner/plans.py) composes Bluesky plan stubs for four
 workflows: snake-grid snap scanning, flyer-based push-broom scanning, bounded
 stage-to-camera hand-eye calibration, and source-only dataset replay. Replay
 preserves source frame/time and scalar source context while making no device
@@ -110,10 +110,7 @@ defines that v1 record contract.
 ## Documentation
 
 - [Examples](examples/README.md)
-- [Bluesky plan surface](docs/bluesky_plans.md)
 - [Observed coverage handoff](docs/observed_coverage.md)
-- [Presenter plan-widget example](docs/examples/redsun_presenter_plan_widget.md)
-- [Offline review page demo](docs/review_demo.html)
 
 ## Development
 

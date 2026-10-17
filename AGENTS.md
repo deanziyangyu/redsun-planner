@@ -34,7 +34,7 @@ redsun-planner/
 |-- tests/                     hardware-free tests, pytest
 |-- examples/                  runnable, device-free snippets
 |-- scripts/                   validate_review.py
-|-- docs/                      usage notes, Bluesky plan reference, JSON schemas
+|-- docs/                      usage notes and JSON schemas
 |-- changelog.d/               towncrier entry files, one per change
 `-- pyproject.toml             dependencies and all tool config: pytest, ruff, mypy, coverage
 ```
