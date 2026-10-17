@@ -307,7 +307,9 @@ def _png_data_uri(image: Any) -> str:
             ).astype(np.uint8)
     stride = max(1, math.ceil(max(rows, cols) / 512))
     scaled = scaled[::stride, ::stride]
-    rows, cols = int(scaled.shape[0]), int(scaled.shape[1])
+    # ceil division: the slice keeps every stride-th row and column
+    rows = (rows + stride - 1) // stride
+    cols = (cols + stride - 1) // stride
     raw = bytearray()
     for y in range(rows):
         raw.append(0)
