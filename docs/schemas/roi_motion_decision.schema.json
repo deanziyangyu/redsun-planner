@@ -1,0 +1,276 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:redsun-planner:schema:roi-motion-decision:2",
+  "title": "ROI motion decision record",
+  "description": "Versioned evidence record joining one mapped ROI intensity event with its source stage-motion fit and calibrated braking assessment. It is a planning/replay record, not a device command or proof of synchronization.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_type",
+    "schema_version",
+    "event",
+    "calibration_id",
+    "calibration_snapshot",
+    "sensor_shape_yx",
+    "detail_roi_yxhw",
+    "motion_fit",
+    "motion_at_event",
+    "motion_sample_age_at_event_s",
+    "extrapolation_from_fit_s",
+    "event_to_command_latency_s",
+    "maximum_event_sample_age_s",
+    "detail_speed_um_s",
+    "deceleration_um_s2",
+    "uncertainty_margin_um",
+    "confidence_sigma",
+    "braking"
+  ],
+  "properties": {
+    "record_type": { "const": "roi_motion_decision" },
+    "schema_version": { "const": 2 },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "trace_id",
+        "trace_sample_index",
+        "event_time_monotonic_ns",
+        "time_mapping_id",
+        "time_mapping_uncertainty_ns",
+        "motion_request_id",
+        "detector_roi_yxhw",
+        "signal_class",
+        "threshold_policy_id"
+      ],
+      "properties": {
+        "event_id": { "type": "string", "minLength": 1 },
+        "trace_id": { "type": "string", "minLength": 1 },
+        "trace_sample_index": { "type": "integer", "minimum": 0 },
+        "event_time_monotonic_ns": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "ROI event time mapped into the host time.monotonic_ns domain."
+        },
+        "time_mapping_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Immutable or archived identifier for the source-to-host clock mapping."
+        },
+        "time_mapping_uncertainty_ns": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Bound on the event timestamp mapping error in nanoseconds."
+        },
+        "motion_request_id": { "type": "string", "minLength": 1 },
+        "detector_roi_yxhw": {
+          "$ref": "#/$defs/positiveRoi",
+          "description": "(y, x, height, width) in corrected delivered sensor pixels."
+        },
+        "signal_class": { "type": "string", "minLength": 1 },
+        "threshold_policy_id": { "type": "string", "minLength": 1 }
+      }
+    },
+    "calibration_id": { "type": "string", "minLength": 1 },
+    "calibration_snapshot": {
+      "$ref": "#/$defs/calibrationSnapshot",
+      "description": "Full affine calibration snapshot used by the braking assessment; pixel_to_stage maps native sensor pixels to stage micrometres."
+    },
+    "sensor_shape_yx": {
+      "type": "array",
+      "items": { "type": "integer", "minimum": 1 },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "detail_roi_yxhw": {
+      "$ref": "#/$defs/positiveRoi",
+      "description": "(y, x, height, width) of the detail FoV in corrected delivered sensor pixels."
+    },
+    "motion_fit": { "$ref": "#/$defs/motionEstimate" },
+    "motion_at_event": { "$ref": "#/$defs/motionEstimate" },
+    "motion_sample_age_at_event_s": { "type": "number", "minimum": 0 },
+    "extrapolation_from_fit_s": { "type": "number", "minimum": 0 },
+    "event_to_command_latency_s": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Delay from the mapped ROI event until a deceleration command can take effect; excludes target-arrival-to-event detection delay."
+    },
+    "maximum_event_sample_age_s": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Maximum allowed stage-readback age at the ROI event, including clock-mapping uncertainty."
+    },
+    "detail_speed_um_s": { "type": "number", "minimum": 0 },
+    "deceleration_um_s2": { "type": "number", "exclusiveMinimum": 0 },
+    "uncertainty_margin_um": { "type": "number", "exclusiveMinimum": 0 },
+    "confidence_sigma": { "type": "number", "exclusiveMinimum": 0 },
+    "braking": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assessment",
+        "calibration_id",
+        "request_id",
+        "feature_motion_direction_stage_xy"
+      ],
+      "properties": {
+        "assessment": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "available_lead_um",
+            "required_latency_distance_um",
+            "required_braking_distance_um",
+            "required_lead_um",
+            "margin_um",
+            "speed_at_command_um_s",
+            "transition_time_s",
+            "cross_track_gap_um",
+            "cross_track_intervals_overlap",
+            "feasible"
+          ],
+          "properties": {
+            "available_lead_um": { "type": "number" },
+            "required_latency_distance_um": { "type": "number", "minimum": 0 },
+            "required_braking_distance_um": { "type": "number", "minimum": 0 },
+            "required_lead_um": { "type": "number", "minimum": 0 },
+            "margin_um": { "type": "number" },
+            "speed_at_command_um_s": { "type": "number", "minimum": 0 },
+            "transition_time_s": { "type": "number", "minimum": 0 },
+            "cross_track_gap_um": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Gap between the detector and detail ROI projection intervals perpendicular to feature motion. Zero means at least one point-feature path could intersect both ROIs; it does not identify the source of an integrated intensity event."
+            },
+            "cross_track_intervals_overlap": {
+              "type": "boolean",
+              "description": "Whether the calibrated detector and detail ROI projections overlap across the direction of travel. This is one necessary geometry check; feasibility also requires adequate along-track lead and braking distance."
+            },
+            "feasible": { "type": "boolean" }
+          }
+        },
+        "calibration_id": { "type": "string", "minLength": 1 },
+        "request_id": { "type": "string", "minLength": 1 },
+        "feature_motion_direction_stage_xy": {
+          "$ref": "#/$defs/xyNumber"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "xyNumber": {
+      "type": "array",
+      "items": { "type": "number" },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "positiveRoi": {
+      "type": "array",
+      "items": { "type": "integer" },
+      "minItems": 4,
+      "maxItems": 4,
+      "allOf": [
+        {
+          "prefixItems": [
+            { "minimum": 0 },
+            { "minimum": 0 },
+            { "minimum": 1 },
+            { "minimum": 1 }
+          ]
+        }
+      ]
+    },
+    "calibrationSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "calibration_id",
+        "coordinate_frame",
+        "pixel_to_stage",
+        "reference_pixel",
+        "camera_stage_xy_um",
+        "roi_origin",
+        "binning"
+      ],
+      "properties": {
+        "calibration_id": { "type": "string", "minLength": 1 },
+        "coordinate_frame": { "type": "string", "minLength": 1 },
+        "pixel_to_stage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/xyNumber" },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "2×2 affine linear map from native (x,y) pixel offsets to stage (x,y) micrometres."
+        },
+        "reference_pixel": { "$ref": "#/$defs/xyNumber" },
+        "camera_stage_xy_um": { "$ref": "#/$defs/xyNumber" },
+        "roi_origin": { "$ref": "#/$defs/xyNumber" },
+        "binning": {
+          "type": "array",
+          "items": { "type": "number", "exclusiveMinimum": 0 },
+          "minItems": 2,
+          "maxItems": 2
+        }
+      }
+    },
+    "motionEstimate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "request_id",
+        "current_velocity_xy_um_s",
+        "current_acceleration_xy_um_s2",
+        "velocity_standard_error_xy_um_s",
+        "acceleration_standard_error_xy_um_s2",
+        "window_start_ns",
+        "window_end_ns",
+        "maximum_sample_age_s",
+        "maximum_gap_s",
+        "maximum_half_bracket_s",
+        "position_fit_rms_um",
+        "sample_count",
+        "valid",
+        "status",
+        "evaluation_time_ns",
+        "observation_event_ids"
+      ],
+      "properties": {
+        "request_id": { "type": "string", "minLength": 1 },
+        "current_velocity_xy_um_s": { "$ref": "#/$defs/xyNumber" },
+        "current_acceleration_xy_um_s2": { "$ref": "#/$defs/xyNumber" },
+        "velocity_standard_error_xy_um_s": {
+          "$ref": "#/$defs/nonnegativeXY"
+        },
+        "acceleration_standard_error_xy_um_s2": {
+          "$ref": "#/$defs/nonnegativeXY"
+        },
+        "window_start_ns": { "type": "integer", "minimum": 0 },
+        "window_end_ns": { "type": "integer", "minimum": 0 },
+        "maximum_sample_age_s": { "type": "number", "minimum": 0 },
+        "maximum_gap_s": { "type": "number", "minimum": 0 },
+        "maximum_half_bracket_s": { "type": "number", "minimum": 0 },
+        "position_fit_rms_um": { "type": "number", "minimum": 0 },
+        "sample_count": { "type": "integer", "minimum": 1 },
+        "valid": { "type": "boolean" },
+        "status": { "type": "string", "minLength": 1 },
+        "evaluation_time_ns": {
+          "oneOf": [
+            { "type": "integer", "minimum": 0 },
+            { "type": "null" }
+          ]
+        },
+        "observation_event_ids": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "nonnegativeXY": {
+      "type": "array",
+      "items": { "type": "number", "minimum": 0 },
+      "minItems": 2,
+      "maxItems": 2
+    }
+  }
+}

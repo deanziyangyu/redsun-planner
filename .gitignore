@@ -1,0 +1,12 @@
+recordings/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv*/
+.tox/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage*

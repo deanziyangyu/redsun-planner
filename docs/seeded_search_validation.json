@@ -1,0 +1,81 @@
+{
+  "status": "completed",
+  "scope": "seeded synthetic simulation only; no biological sensitivity or hardware acceptance",
+  "survey_tile_count": 12,
+  "survey_tile_ids": [
+    "tile-r00-c00",
+    "tile-r00-c01",
+    "tile-r00-c02",
+    "tile-r00-c03",
+    "tile-r01-c03",
+    "tile-r01-c02",
+    "tile-r01-c01",
+    "tile-r01-c00",
+    "tile-r02-c00",
+    "tile-r02-c01",
+    "tile-r02-c02",
+    "tile-r02-c03"
+  ],
+  "empty_survey_tile_ids": [
+    "tile-r00-c00",
+    "tile-r01-c03",
+    "tile-r01-c00"
+  ],
+  "survey_precedes_full_revisits": true,
+  "target_count": 4,
+  "recalled_inside_truth_objects_within_2um": {
+    "(-3,1)": true,
+    "(8,1)": true,
+    "(-145,90)": true,
+    "(55,-75)": true
+  },
+  "distinct_nearby_objects_retained": true,
+  "outside_truth_object_rejected": true,
+  "outside_truth_object_false_targets": [],
+  "commanded_target_readback_error_um": {
+    "d71c6833-552d-5f08-8027-8b7726e75bc7": 0.0,
+    "d24e20dd-a59e-57b9-a4a7-cf766776449d": 0.0,
+    "e5346429-c146-58d7-a70f-c409a4ec28e9": 0.0,
+    "d8a433fd-8068-5d09-be4a-58b6236fdb47": 0.0
+  },
+  "revisit_truth_centering_error_um": {
+    "d71c6833-552d-5f08-8027-8b7726e75bc7": 0.37551990493167153,
+    "d24e20dd-a59e-57b9-a4a7-cf766776449d": 0.36363636363636453,
+    "e5346429-c146-58d7-a70f-c409a4ec28e9": 0.09666666666667112,
+    "d8a433fd-8068-5d09-be4a-58b6236fdb47": 0.0
+  },
+  "truth_centering_tolerance_um": 2.0,
+  "saved_detection_replay_matches_targets": true,
+  "targets_um": [
+    {
+      "target_id": "d71c6833-552d-5f08-8027-8b7726e75bc7",
+      "x_um": -2.999999999999993,
+      "y_um": 0.6244800950683285
+    },
+    {
+      "target_id": "d24e20dd-a59e-57b9-a4a7-cf766776449d",
+      "x_um": 8.000000000000009,
+      "y_um": 0.6363636363636355
+    },
+    {
+      "target_id": "e5346429-c146-58d7-a70f-c409a4ec28e9",
+      "x_um": 55.09666666666667,
+      "y_um": -75.0
+    },
+    {
+      "target_id": "d8a433fd-8068-5d09-be4a-58b6236fdb47",
+      "x_um": -145.0,
+      "y_um": 90.0
+    }
+  ],
+  "seam_object_detected_tiles": [
+    "tile-r00-c01",
+    "tile-r00-c02",
+    "tile-r01-c02",
+    "tile-r01-c01",
+    "tile-r02-c01",
+    "tile-r02-c02"
+  ],
+  "run_errors": [],
+  "acceptance_checks_pass": true
+}

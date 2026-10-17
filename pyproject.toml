@@ -1,0 +1,166 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "redsun-planner"
+version = "0.1.0.dev0"
+description = "Reusable sample-search recipes and modular Bluesky plan generators"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Typing :: Typed",
+    "License :: OSI Approved :: Apache Software License",
+]
+dependencies = ["bluesky>=1.14.6", "numpy>=1.24"]
+
+[project.urls]
+homepage = "https://github.com/deanziyangyu/redsun-planner"
+bugs = "https://github.com/deanziyangyu/redsun-planner/issues"
+changelog = "https://github.com/deanziyangyu/redsun-planner/blob/main/CHANGELOG.md"
+
+[dependency-groups]
+dev = [
+    { include-group = "lint" },
+    { include-group = "coverage" },
+    { include-group = "test" },
+    "mypy>=2.0",
+    "towncrier>=24.8",
+]
+lint = [
+    "prek>=0.5.4",
+    "ruff>=0.16.9",
+]
+coverage = [
+    "coverage>=7.6",
+]
+test = [
+    "pytest>=8",
+    "Pillow>=10",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+planner = ["py.typed"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+exclude = ["build/"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ruff.lint]
+extend-select = [
+    "D", # enable docstring checks
+    "I", # enable imports checks
+    "TC", # enable type check imports
+    "FA102", # force __future__ imports
+    "E402", # imports at the top of the module
+    "PLC0415", # no import inside a function
+]
+ignore = ["D100", "D104"] # https://docs.astral.sh/ruff/rules/undocumented-public-package/
+
+[tool.ruff.lint.per-file-ignores]
+# a test module documents what it checks by its name and its assertions; D103
+# would demand a docstring on every small helper alongside
+"tests/*.py" = [
+    "D101",
+    "D102",
+    "D103",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.mypy]
+files = "."
+mypy_path = ["src"]
+explicit_package_bases = true
+disable_error_code = [
+    "import-untyped",
+    "no-untyped-call",
+]
+pretty = true
+strict = true
+warn_unreachable = true
+warn_no_return = true
+exclude = ["^build/"]
+
+[tool.coverage.run]
+source = ["planner"]
+omit = ["tests/*"]
+
+[tool.coverage.paths]
+source = ["src/", "*/src/"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "@abstractmethod",
+    "if TYPE_CHECKING:",
+    "@overload",
+    "class .*Protocol",
+    "except ImportError",
+    "except PackageNotFoundError",
+    "raise NotImplementedError()",
+]
+
+[tool.uv]
+default-groups = ["dev"]
+
+[tool.towncrier]
+directory = "changelog.d"
+filename = "CHANGELOG.md"
+start_string = ""
+title_format = "## [{version}](https://github.com/deanziyangyu/redsun-planner/releases/tag/v{version}) - {project_date}"
+issue_format = "[#{issue}](https://github.com/deanziyangyu/redsun-planner/pull/{issue})"
+# set, even empty, so a misnamed entry fails the build instead of being skipped
+ignore = []
+
+[[tool.towncrier.type]]
+directory = "breaking"
+name = "Breaking"
+
+[[tool.towncrier.type]]
+directory = "added"
+name = "Added"
+
+[[tool.towncrier.type]]
+directory = "changed"
+name = "Changed"
+
+[[tool.towncrier.type]]
+directory = "deprecated"
+name = "Deprecated"
+
+[[tool.towncrier.type]]
+directory = "removed"
+name = "Removed"
+
+[[tool.towncrier.type]]
+directory = "fixed"
+name = "Fixed"
+
+[[tool.towncrier.type]]
+directory = "security"
+name = "Security"
