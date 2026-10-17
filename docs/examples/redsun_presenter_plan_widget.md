@@ -22,7 +22,7 @@ mapping whose entry contains a `plan` callable and `callbacks` list; its plan
 method is decorated with `@continuous`. The audited source SHA-256 is
 `422cec0a0135913d5a9a5ac79d7ec38bdabe1fd5f5c85db9ed9ac81cf567957a`. Treat
 this source audit as a contract snapshot, not as proof that a different installed
-RedSun version is compatible. 
+RedSun version is compatible.
 
 ## Minimal snap-plan wrapper
 
