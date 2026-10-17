@@ -384,6 +384,7 @@ def push_broom_plan(
     md: Mapping[str, Any] | None = None,
     stream_name: str = "primary",
     progress_callback: Callable[[Any, int, int], Iterable[Any]] | None = None,
+    validate_strip: Callable[[Any, int, int], None] | None = None,
 ) -> Iterable[Any]:
     """Prepare and collect each continuous strip from Bluesky devices.
 
@@ -401,7 +402,11 @@ def push_broom_plan(
     ``progress_callback``, when provided with external ``stream_writers``, is
     called with the flyer's completion status and the one-based strip index and
     total strip count. The host may use the status watcher to report frame
-    progress while the strip completes.
+    progress while the strip completes. If completion or monitoring fails, the
+    plan still collects that strip's available geometry and asset documents
+    before propagating the failure. ``validate_strip``, when provided, runs
+    after a strip's geometry and asset documents have been collected; the host
+    can then reject a domain-level terminal result without losing that evidence.
 
     ``flyer.prepare(strip=...)`` must configure a bounded strip without
     starting motion, and its event stream must include frame identity, image
@@ -422,6 +427,8 @@ def push_broom_plan(
         )
     if progress_callback is not None and not stream_writers:
         raise ValueError("progress_callback requires external stream_writers")
+    if validate_strip is not None and not stream_writers:
+        raise ValueError("validate_strip requires external stream_writers")
     planner_md = _metadata(
         md,
         {
@@ -471,16 +478,18 @@ def push_broom_plan(
             active_strip = True
             current_strip_collected = False
             if writer_streams:
-                if progress_callback is None:
-                    yield from bps.complete(flyer, wait=True)
-                else:
-                    group = uuid4().hex
-                    status = yield from bps.complete(flyer, group=group, wait=False)
+                group = uuid4().hex
+                status = yield from bps.complete(flyer, group=group, wait=False)
+                if progress_callback is not None:
                     yield from progress_callback(
                         status, strip_index, len(recipe.strips)
                     )
-                    yield from bps.wait(group=group)
+                yield from bps.wait(group=group)
                 yield from collect_strip()
+                current_strip_collected = True
+                active_strip = False
+                if validate_strip is not None:
+                    validate_strip(flyer, strip_index, len(recipe.strips))
             else:
                 yield from bps.collect_while_completing(
                     [flyer], collectables, stream_name=stream_name

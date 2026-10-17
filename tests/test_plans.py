@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import types
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, cast
 
 import numpy as np
 import pytest
@@ -470,6 +470,94 @@ def test_push_broom_plan_calls_host_progress_callback_for_each_strip(
     assert sum(message[0] == "test_progress" for message in messages) == len(
         recipe.strips
     )
+
+
+def test_push_broom_plan_collects_after_completion_failure_before_reraising(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = _install_bluesky_stubs(monkeypatch)
+
+    def failing_wait(*args: Any, **kwargs: Any) -> NoReturn:
+        calls.append(("wait", args, kwargs))
+        raise RuntimeError("flyer completion failed")
+
+    monkeypatch.setattr(plans.bps, "wait", failing_wait)  # type: ignore[attr-defined]
+    boundary = ConfirmedBoundary.from_opposite_corners(
+        CornerObservation((0, 0), True, "a", (0, 0)),
+        CornerObservation((30, 20), True, "b", (30, 20)),
+        coordinate_frame="stage-xy",
+        boundary_id="failure-test",
+    )
+    recipe = plan_broom_scan(boundary, (10, 10), 0.5)
+
+    with pytest.raises(RuntimeError, match="flyer completion failed"):
+        list(
+            push_broom_plan(
+                recipe,
+                flyer="geometry-flyer",
+                stream_writers=("camera-stream",),
+            )
+        )
+
+    wait_index = next(index for index, call in enumerate(calls) if call[0] == "wait")
+    collect_indices = [
+        index for index, call in enumerate(calls) if call[0] == "collect"
+    ]
+    assert len(collect_indices) == 2
+    assert all(index > wait_index for index in collect_indices)
+
+
+def test_push_broom_validates_terminal_result_after_collecting_strip(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = _install_bluesky_stubs(monkeypatch)
+    boundary = ConfirmedBoundary.from_opposite_corners(
+        CornerObservation((0, 0), True, "a", (0, 0)),
+        CornerObservation((30, 20), True, "b", (30, 20)),
+        coordinate_frame="stage-xy",
+        boundary_id="validation-test",
+    )
+    recipe = plan_broom_scan(boundary, (10, 10), 0.5)
+    validated: list[tuple[Any, int, int]] = []
+
+    def reject_terminal_result(flyer: Any, strip_index: int, strip_count: int) -> None:
+        validated.append((flyer, strip_index, strip_count))
+        assert sum(call[0] == "collect" for call in calls) == 2
+        raise RuntimeError("camera_faulted after evidence collection")
+
+    with pytest.raises(RuntimeError, match="camera_faulted"):
+        list(
+            push_broom_plan(
+                recipe,
+                flyer="geometry-flyer",
+                stream_writers=("camera-stream",),
+                validate_strip=reject_terminal_result,
+            )
+        )
+
+    assert validated == [("geometry-flyer", 1, len(recipe.strips))]
+
+
+def test_push_broom_requires_external_writer_for_strip_validator(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _install_bluesky_stubs(monkeypatch)
+    boundary = ConfirmedBoundary.from_opposite_corners(
+        CornerObservation((0, 0), True, "a", (0, 0)),
+        CornerObservation((30, 20), True, "b", (30, 20)),
+        coordinate_frame="stage-xy",
+        boundary_id="validation-contract-test",
+    )
+    recipe = plan_broom_scan(boundary, (10, 10), 0.5)
+
+    with pytest.raises(ValueError, match="validate_strip requires external"):
+        list(
+            push_broom_plan(
+                recipe,
+                flyer="geometry-flyer",
+                validate_strip=lambda _flyer, _index, _count: None,
+            )
+        )
 
 
 def test_plans_reject_missing_positions_and_reserved_metadata(
