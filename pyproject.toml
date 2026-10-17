@@ -35,6 +35,7 @@ dev = [
     { include-group = "coverage" },
     { include-group = "test" },
     "mypy>=2.0",
+    "ophyd>=1.11",
     "towncrier>=24.8",
 ]
 lint = [
