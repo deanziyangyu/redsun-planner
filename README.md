@@ -4,7 +4,7 @@ Backend-independent, modular acquisition orchestration built on `bluesky` plans.
 It provides sample-search recipes, geometry and scan calculations, review
 metadata, and hardware-free run records for any acquisition host.
 
-The import name is `planner`; the distribution name is `redsun-planner`. It 
+The import name is `planner`; the distribution name is `redsun-planner`. It
 implements the acquisition optimization framework [**SPARTA**](./docs/sparta.md): Spatiotemporal
  Pareto Acquisition-Regime Trajectory Allocation. The name is recorded in
 `planner.sparta`; the public API keeps the plain `AcquisitionPoint`,
