@@ -13,6 +13,7 @@ PYTHONPATH=src python examples/01_recipe_and_tiles.py
 | [`01_recipe_and_tiles.py`](01_recipe_and_tiles.py) | build a grid recipe, tile a region in serpentine order, map image pixels to stage micrometres |
 | [`02_detect_and_place.py`](02_detect_and_place.py) | detect bright objects in a synthetic frame and place them on the stage through a calibration |
 | [`03_hand_eye_fit.py`](03_hand_eye_fit.py) | fit the stage-to-camera transform from measured pairs and run the quality gates |
+| [`04_presenter_plan_bundle.py`](04_presenter_plan_bundle.py) | offer plans through a Redsun-style presenter `plan_map` and run one entry under a RunEngine |
 
 ## Where the framework boundary is
 

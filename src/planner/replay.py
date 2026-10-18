@@ -122,7 +122,7 @@ class _ReplayFrameReadable:
         """Describe the stable frame arrays and source provenance fields.
 
         Every field except the frame identifier carries a ``units`` entry, so a
-        host can render the engineering unit the way a RedSun view does
+        host can render the engineering unit the way a Redsun view does
         (``descriptor.get("units", "")``). Only the time field has a unit this
         package can know; an arbitrary ``source_*`` scalar or an image array
         declares an empty unit rather than guessing one. ``source_frame_id`` is

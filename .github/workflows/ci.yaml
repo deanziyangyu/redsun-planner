@@ -33,6 +33,13 @@ jobs:
       - name: Type check
         run: uv run --locked --group dev mypy
 
+      # verify the installed console script and the comparison path, not
+      # only the importable test surface
+      - name: Check the CLI entry point
+        run: |
+          uv run --locked planner --help
+          uv run --locked planner compare --samples 10 --scenario measured --json > /dev/null
+
   tests:
     name: Tests ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
