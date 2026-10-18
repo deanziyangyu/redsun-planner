@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "redsun-planner"
 version = "0.1.0.dev0"
-description = "Reusable sample-search recipes and modular Bluesky plan generators"
+description = "Acquisition-space optimization, sample-search recipes and Bluesky plan generators"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {file = "LICENSE"}
@@ -22,12 +22,15 @@ classifiers = [
     "Typing :: Typed",
     "License :: OSI Approved :: Apache Software License",
 ]
-dependencies = ["bluesky>=1.14.6", "numpy>=1.24"]
+dependencies = ["bluesky>=1.14.6", "numpy>=1.24,<2.5"]
 
 [project.urls]
 homepage = "https://github.com/deanziyangyu/redsun-planner"
 bugs = "https://github.com/deanziyangyu/redsun-planner/issues"
 changelog = "https://github.com/deanziyangyu/redsun-planner/blob/main/CHANGELOG.md"
+
+[project.scripts]
+planner = "planner.cli:main"
 
 [dependency-groups]
 dev = [

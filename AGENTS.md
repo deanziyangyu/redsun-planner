@@ -14,16 +14,21 @@ importable name.
 redsun-planner/
 |-- src/planner/
 |   |-- __init__.py            public surface: re-exports with an explicit __all__
+|   |-- __main__.py            python -m planner entry point
+|   |-- cli.py                 argparse entry point: simulate, validate, diff
 |   |-- contracts.py           dataclasses and enums shared by every workflow
 |   |-- geometry.py            calibration, regions, tiles, target deduplication
 |   |-- detection.py           bright-object detection configuration and helpers
 |   |-- scanning.py            grid recipes, ScanPosition, StageScanRecipe
+|   |-- search_imaging.py      two-round survey and focused revisit recipes/plans
 |   |-- bounded_scanning.py    operator-confirmed boundary snap and broom plans
 |   |-- plans.py               Bluesky plan generators (snap, broom, hand-eye, replay)
 |   |-- protocols.py           LiveFlyer and XYMotor device contracts
 |   |-- replay.py              ReplayFrame and the replay source adapter
 |   |-- records.py             run/replay/checkpoint save and load
 |   |-- review.py              operator review metadata and offline HTML page
+|   |-- report_html.py         self-contained throughput HTML pages
+|   |-- sparta.py              SPARTA framework name constants
 |   |-- hand_eye.py            hand-eye fit and quality gates
 |   |-- motion_state.py        stage motion estimation
 |   |-- speed_policy.py        intensity-to-speed calculation
@@ -38,6 +43,19 @@ redsun-planner/
 |-- changelog.d/               towncrier entry files, one per change
 `-- pyproject.toml             dependencies and all tool config: pytest, ruff, mypy, coverage
 ```
+
+## Framework name
+
+The acquisition optimization framework is **SPARTA**: Spatiotemporal Pareto
+Acquisition-Regime Trajectory Allocation. The acquisition space remains the
+state space; SPARTA is the conceptual optimization layer over it.
+
+SPARTA is a name, not an API vocabulary. Use the plain types
+(`AcquisitionPoint`, `AcquisitionEnvelope`, `OperatingTrace`, `SearchUtility`)
+and the existing modules. `planner.sparta` holds only the framework name
+constants. Do not add `Sparta*` type aliases, a `planner sparta` command, or the
+acronym in every doc/HTML heading; keep it for the paper, top-level README and
+`docs/sparta.md`. Do not rename persisted schemas or existing public types.
 
 ## Scope
 
@@ -63,6 +81,12 @@ uv run prek run --all-files              # the commit hooks, ruff included
 
 There are no optional extras: the package depends on `numpy` and `bluesky` only.
 
+The NumPy range is `>=1.24,<2.5`. The development lock resolves 2.4.6 on Python
+3.11+, while a host still on NumPy 1.26 (the temporary acquisition application)
+installs the same package. Keep the range broad enough for both rather than
+pinning one host's version; 2.5 is excluded only because the current host stack
+(numba and scipy) does not accept it.
+
 The package targets Python `>=3.10`, because host applications still run older
 interpreters. Do not use `datetime.UTC`, `StrEnum`, `typing.Self`, `tomllib`,
 `except*` or other 3.11+ constructs, even though the tooling runs on 3.12.
@@ -86,10 +110,13 @@ interpreters. Do not use `datetime.UTC`, `StrEnum`, `typing.Self`, `tomllib`,
 - Units: write the short engineering-unit spelling a host reads, `"um"`, `"px"`,
   `"s"`, `"ms"`, never a symbol or a spelled-out word, and expose it through a
   descriptor `units` entry where the value is numeric or an array. `egu` is the
-  name of a device declaration or plan parameter in RedSun, not a descriptor
+  name of a device declaration or plan parameter in Redsun, not a descriptor
   key; this package declares neither devices nor plan parameters, so `egu`
   appears nowhere here. Where a unit genuinely cannot be known, an empty string
   is correct and preferable to guessing.
+- Write the application name as **Redsun** in prose and `redsun` in packages,
+  modules, paths and identifiers. Never capitalise the second word; that
+  camel-case spelling kept reappearing in copied prose, so fix it on sight.
 
 ## Record and identifier stability
 
@@ -133,9 +160,9 @@ defects, not only missing annotations, in `replay.py` (an unreachable
 `hand_eye.py` (optional RANSAC metrics used without narrowing, and matrices
 rebuilt as ragged tuples).
 
-`uv.lock` is not committed yet, so `prek.toml` and the CI workflows resolve the
-groups on demand instead of passing `--locked`. Generate the lock and add
-`--locked` to both once network access allows a full resolve.
+`uv.lock` is committed, and `prek.toml` and the CI workflows pass `--locked`, so
+the hooks, the type check and the tests resolve the same numpy and ophyd versions
+a fresh runner installs.
 
 ## Updating this guide
 

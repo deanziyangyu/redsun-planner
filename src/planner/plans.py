@@ -385,6 +385,7 @@ def push_broom_plan(
     stream_name: str = "primary",
     progress_callback: Callable[[Any, int, int], Iterable[Any]] | None = None,
     validate_strip: Callable[[Any, int, int], None] | None = None,
+    post_scan: Callable[[], Iterable[Any]] | None = None,
 ) -> Iterable[Any]:
     """Prepare and collect each continuous strip from Bluesky devices.
 
@@ -407,6 +408,10 @@ def push_broom_plan(
     before propagating the failure. ``validate_strip``, when provided, runs
     after a strip's geometry and asset documents have been collected; the host
     can then reject a domain-level terminal result without losing that evidence.
+    ``post_scan``, when provided, runs after all strips have completed and been
+    validated, but before the run closes. It is skipped if a strip fails or the
+    run is interrupted, so a host can use it for successful-run actions such as
+    returning the stage to its recorded anchor.
 
     ``flyer.prepare(strip=...)`` must configure a bounded strip without
     starting motion, and its event stream must include frame identity, image
@@ -496,6 +501,8 @@ def push_broom_plan(
                 )
             current_strip_collected = True
             active_strip = False
+        if post_scan is not None:
+            yield from post_scan()
 
     def collect_interrupted_strip() -> Iterable[Any]:
         """Stop an interrupted fly and collect its accepted partial prefix."""

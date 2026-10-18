@@ -432,6 +432,39 @@ def test_push_broom_plan_prepares_and_collects_each_strip(
     assert start_md["planner_expected_strip_count"] == len(recipe.strips)
 
 
+def test_push_broom_post_scan_runs_after_all_strip_collection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Complete the return hook after strip evidence, inside the run."""
+    calls = _install_bluesky_stubs(monkeypatch)
+    boundary = ConfirmedBoundary.from_opposite_corners(
+        CornerObservation((0, 0), True, "a", (0, 0)),
+        CornerObservation((30, 20), True, "b", (30, 20)),
+        coordinate_frame="stage-xy",
+        boundary_id="post-scan-test",
+    )
+    recipe = plan_broom_scan(boundary, (10, 10), 0.5)
+
+    def return_to_anchor() -> Iterator[tuple[str]]:
+        yield ("return_to_anchor",)
+
+    messages = list(
+        push_broom_plan(
+            recipe,
+            flyer="geometry-flyer",
+            stream_writers=("camera-stream",),
+            post_scan=return_to_anchor,
+        )
+    )
+
+    names = [message[0] for message in messages]
+    assert names.index("return_to_anchor") > max(
+        index for index, name in enumerate(names) if name == "collect"
+    )
+    assert names.index("return_to_anchor") < names.index("run_stop")
+    assert sum(call[0] == "collect" for call in calls) == 2 * len(recipe.strips)
+
+
 def test_push_broom_plan_calls_host_progress_callback_for_each_strip(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
