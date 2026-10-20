@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass
 from math import isfinite
 from typing import TYPE_CHECKING
@@ -56,6 +57,102 @@ class SpeedCurve:
 
 
 _DEFAULT_SPEED_BLEND_CONFIG = SpeedBlendConfig()
+
+
+@dataclass(frozen=True)
+class SpeedProposal:
+    """One causal speed proposal produced from the observations so far."""
+
+    interest: float
+    smoothed_interest: float
+    blend_fraction: float
+    desired_speed_um_s: float
+    slew_limited_speed_um_s: float
+
+
+class SpeedBlendController:
+    """Produce causal, acceleration-limited speed proposals one sample at a time.
+
+    This pure policy is suitable for a Bluesky plan or a streaming observer to
+    evaluate. It does not issue device commands and its acceleration bound is a
+    model input, not a claim about physical stage behavior.
+    """
+
+    def __init__(
+        self,
+        *,
+        slow_speed_um_s: float,
+        fast_speed_um_s: float,
+        sample_interval_s: float,
+        config: SpeedBlendConfig = _DEFAULT_SPEED_BLEND_CONFIG,
+        initial_speed_um_s: float | None = None,
+    ) -> None:
+        if not (
+            isfinite(slow_speed_um_s)
+            and isfinite(fast_speed_um_s)
+            and 0 < slow_speed_um_s <= fast_speed_um_s
+        ):
+            raise ValueError("speeds must be finite and satisfy 0 < slow <= fast")
+        if not isfinite(sample_interval_s) or sample_interval_s <= 0:
+            raise ValueError("sample_interval_s must be finite and positive")
+        if initial_speed_um_s is not None and (
+            not isfinite(initial_speed_um_s)
+            or not 0 <= initial_speed_um_s <= fast_speed_um_s
+        ):
+            raise ValueError("initial speed must be finite and within [0, fast_speed]")
+        self.slow_speed_um_s = slow_speed_um_s
+        self.fast_speed_um_s = fast_speed_um_s
+        self.sample_interval_s = sample_interval_s
+        self.config = config
+        self._initial_speed_um_s = initial_speed_um_s
+        self._history: deque[float] = deque(maxlen=config.smoothing_frames)
+        self._previous_speed_um_s: float | None = None
+
+    def update(self, interest: float, motion_confidence: float = 1.0) -> SpeedProposal:
+        """Return the speed proposal for one new intensity observation."""
+        if not isfinite(interest) or not 0 <= interest <= 1:
+            raise ValueError("interest values must be finite and in [0, 1]")
+        if not isfinite(motion_confidence) or not 0 <= motion_confidence <= 1:
+            raise ValueError("motion_confidence values must be finite and in [0, 1]")
+        self._history.append(interest)
+        smoothed = sum(self._history) / len(self._history)
+        span = self.config.interest_slow_threshold - self.config.interest_fast_threshold
+        fraction = min(
+            1.0,
+            max(
+                0.0,
+                (smoothed - self.config.interest_fast_threshold) / span,
+            ),
+        )
+        if motion_confidence < self.config.minimum_motion_confidence:
+            desired = 0.0
+        else:
+            smoothstep = 3 * fraction**2 - 2 * fraction**3
+            desired = (
+                self.fast_speed_um_s
+                - (self.fast_speed_um_s - self.slow_speed_um_s) * smoothstep
+            )
+
+        max_delta = self.config.max_acceleration_um_s2 * self.sample_interval_s
+        if self._previous_speed_um_s is None and self._initial_speed_um_s is None:
+            limited = (
+                self.slow_speed_um_s
+                if motion_confidence >= self.config.minimum_motion_confidence
+                else 0.0
+            )
+        else:
+            previous = (
+                self._initial_speed_um_s
+                if self._previous_speed_um_s is None
+                else self._previous_speed_um_s
+            )
+            assert previous is not None
+            limited = min(
+                previous + max_delta,
+                max(max(0.0, previous - max_delta), desired),
+            )
+        self._previous_speed_um_s = limited
+        return SpeedProposal(interest, smoothed, fraction, desired, limited)
 
 
 def _finite_values(values: Iterable[float], label: str) -> tuple[float, ...]:
@@ -129,36 +226,19 @@ def blend_intensity_to_speed(
     ):
         raise ValueError("initial_speed_um_s must be finite and within [0, fast_speed]")
 
-    smoothed, blend = blend_interest(raw, config)
-    desired = tuple(
-        0.0
-        if confidence[index] < config.minimum_motion_confidence
-        else fast_speed_um_s
-        - (fast_speed_um_s - slow_speed_um_s) * (3 * fraction**2 - 2 * fraction**3)
-        for index, fraction in enumerate(blend)
+    controller = SpeedBlendController(
+        slow_speed_um_s=slow_speed_um_s,
+        fast_speed_um_s=fast_speed_um_s,
+        sample_interval_s=sample_interval_s,
+        config=config,
+        initial_speed_um_s=initial_speed_um_s,
     )
-    bounded: list[float] = []
-    if desired:
-        max_delta = config.max_acceleration_um_s2 * sample_interval_s
-        if initial_speed_um_s is None:
-            # Preserve the legacy policy's conservative slow-speed first sample.
-            bounded.append(
-                slow_speed_um_s
-                if confidence[0] >= config.minimum_motion_confidence
-                else 0.0
-            )
-            targets = desired[1:]
-        else:
-            bounded.append(
-                min(
-                    initial_speed_um_s + max_delta,
-                    max(max(0.0, initial_speed_um_s - max_delta), desired[0]),
-                )
-            )
-            targets = desired[1:]
-        for target in targets:
-            previous = bounded[-1]
-            bounded.append(
-                min(previous + max_delta, max(max(0.0, previous - max_delta), target))
-            )
-    return SpeedCurve(smoothed, blend, desired, tuple(bounded))
+    proposals = tuple(
+        controller.update(value, confidence[index]) for index, value in enumerate(raw)
+    )
+    return SpeedCurve(
+        tuple(sample.smoothed_interest for sample in proposals),
+        tuple(sample.blend_fraction for sample in proposals),
+        tuple(sample.desired_speed_um_s for sample in proposals),
+        tuple(sample.slew_limited_speed_um_s for sample in proposals),
+    )

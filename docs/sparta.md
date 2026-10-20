@@ -19,6 +19,7 @@ belongs in the paper, the top-level README and this page.
 | Broom trajectory timing | `planner.broom` |
 | Two-round simulation | `planner.simulation` |
 | Operating-space traces | `planner.operating_map` |
+| Operating-point schedule and plan lowering | `planner.operating_schedule` |
 | HTML reports | `planner.report_html` |
 
 The day-to-day API keeps plain names:
@@ -34,6 +35,15 @@ context. `AcquisitionEnvelope` supplies the low/high thresholds that define the
 eight corners and the shaded bands in the HTML operating map. `OperatingTrace`
 is an ordered path through the space, such as the adaptive broom's
 dwell-ramp-cruise-ramp-dwell sequence. None of these needs a `Sparta` prefix.
+
+An evaluated schedule is represented by `OperatingPointRequest` and ordered
+`OperatingPointSegment` records. `assess_operating_point_request` combines each
+segment's measurement verdict with a host-supplied capability snapshot for
+sensor ROI/binning, exposure, frame cadence, stage speed, acceleration and
+travel bounds. `operating_point_schedule_plan` rejects any infeasible segment
+before opening the run, then records the exact request and decision in run
+metadata while invoking host configuration and acquisition plan callbacks in
+segment order.
 
 ## Operating map
 

@@ -177,6 +177,46 @@ overscan, envelope classification and any declared limits verdicts. An operating
 point that falls between envelope bands has no corner; that is reported as a
 warning, not a validation failure.
 
+## Offline review checkpoint
+
+Hosts that save a `planner-run-v3` review-pending checkpoint can render its
+validated candidates into the package's self-contained accept/reject page with
+`render_review_checkpoint`. The host supplies an image loader for its storage
+format; the planner verifies the checkpoint checksum, candidate manifest,
+calibration context and survey observations before writing the page. The page
+exports a `ReviewDecision` JSON file and cannot access or command hardware.
+
+```python
+from planner import render_review_checkpoint
+
+manifest = render_review_checkpoint(
+    "review-pending.json",
+    "target-review.html",
+    image_loader=load_saved_survey_image,
+)
+print(manifest.sha256)
+```
+
+The image loader must resolve each observation to the matching saved survey
+image. `SearchObservation.dataset_frame_index` carries an explicit zero-based
+index into the dataset named by `data_reference`; hosts must populate and
+validate this association rather than infer it from Zarr, TIFF, RTASPT or
+application-specific URI conventions. To validate an exported decision and
+obtain the ordered focused targets, hosts can call:
+
+```python
+from planner import apply_review_checkpoint
+
+run, decision, targets = apply_review_checkpoint(
+    "review-pending.json",
+    "review-decision.json",
+)
+focused_targets = targets
+```
+
+The checkpoint remains unchanged. The host owns its run-state transition and
+execution record when it starts focused acquisition.
+
 ## Limits of the workflow
 
 - No detection, tracking, focus search, registration or stitching is modelled
