@@ -271,6 +271,8 @@ def hand_eye_calibration_plan(
     x_probe_um: float = 10.0,
     y_probe_um: float = 10.0,
     repeats_per_direction: int = 1,
+    grid_shape_xy: tuple[int, int] | None = None,
+    grid_spacing_xy_um: tuple[float, float] | None = None,
     mode_context: Mapping[str, str],
     readables: Sequence[Any] = (),
     coordinate_frame: str,
@@ -280,14 +282,13 @@ def hand_eye_calibration_plan(
     md: Mapping[str, Any] | None = None,
     stream_name: str = "calibration",
 ) -> MsgGenerator[Any]:
-    """Acquire a bounded, bidirectional stage-to-camera calibration sequence.
+    """Acquire a bounded hand-eye sequence using probes or a dense XY grid.
 
-    The host supplies a previously read anchor and device objects. This plan
-    moves to the anchor, captures a reference, then visits +X, -X, +Y and -Y
-    one point at a time, returning to the declared anchor and capturing a
-    closure frame after each probe. ``repeats_per_direction`` repeats this
-    signed four-probe sequence with a frame at each endpoint and return. It
-    records actual stage readbacks with every image event. Returns target the
+    The host supplies a preflighted anchor and device objects. In probe mode,
+    it captures signed X/Y endpoints and returns to the anchor after each
+    probe. In grid mode, it captures a centered odd-sized lattice in snake
+    order, then returns to the anchor for a closure frame. Both modes record
+    actual stage readbacks with every image event. Return targets use the
     preflight anchor in stage units; this plan does not derive a return command
     from raw encoder-count deltas. Device identity, physical limits, settling
     semantics and profile preflight remain the host's responsibility; this
@@ -312,7 +313,51 @@ def hand_eye_calibration_plan(
             or value <= 0
         ):
             raise ValueError(f"{name} must be finite and positive")
-    capture_labels = hand_eye_capture_labels(repeats_per_direction)
+    if (grid_shape_xy is None) != (grid_spacing_xy_um is None):
+        raise ValueError("grid shape and spacing must be provided together")
+    grid_enabled = grid_shape_xy is not None
+    if grid_enabled:
+        assert grid_shape_xy is not None and grid_spacing_xy_um is not None
+        if (
+            len(grid_shape_xy) != 2
+            or any(
+                isinstance(v, bool) or not isinstance(v, int) or v < 3 or v % 2 == 0
+                or v > 15
+                for v in grid_shape_xy
+            )
+            or grid_shape_xy[0] * grid_shape_xy[1] > 225
+        ):
+            raise ValueError("grid_shape_xy must be odd dimensions from 3 to 15")
+        if (
+            len(grid_spacing_xy_um) != 2
+            or any(
+                isinstance(v, bool)
+                or not isinstance(v, (int, float))
+                or not math.isfinite(v)
+                or v <= 0
+                for v in grid_spacing_xy_um
+            )
+        ):
+            raise ValueError("grid_spacing_xy_um must contain positive finite XY steps")
+        if repeats_per_direction != 1:
+            raise ValueError("grid captures do not combine with probe repeats")
+        columns, rows = grid_shape_xy
+        sx, sy = (float(v) for v in grid_spacing_xy_um)
+        capture_labels = (
+            "reference",
+            *(
+                f"grid_y{row:02d}_x{column:02d}"
+                for row in range(rows)
+                for column in (
+                    range(columns)
+                    if row % 2 == 0
+                    else range(columns - 1, -1, -1)
+                )
+            ),
+            "anchor_return",
+        )
+    else:
+        capture_labels = hand_eye_capture_labels(repeats_per_direction)
     if not coordinate_frame:
         raise ValueError("coordinate_frame is required")
     if not mode_context or any(
@@ -406,11 +451,34 @@ def hand_eye_calibration_plan(
                     (f"{return_label}{suffix}", ax, ay),
                 )
             )
+    if grid_enabled:
+        schedule = [("reference", ax, ay)]
+        center_x, center_y = (columns - 1) / 2, (rows - 1) / 2
+        for row in range(rows):
+            column_order = (
+                range(columns)
+                if row % 2 == 0
+                else range(columns - 1, -1, -1)
+            )
+            for column in column_order:
+                schedule.append(
+                    (
+                        "grid_y{:02d}_x{:02d}".format(row, column),
+                        ax + (column - center_x) * sx,
+                        ay + (row - center_y) * sy,
+                    )
+                )
+        schedule.append(("anchor_return", ax, ay))
+
     planner_md = _metadata(
         md,
         {
             "planner_schema": "redsun-planner-run-v1",
-            "planner_workflow": "stage-camera-hand-eye-calibration-v1",
+            "planner_workflow": (
+                "stage-camera-hand-eye-grid-calibration-v1"
+                if grid_enabled
+                else "stage-camera-hand-eye-calibration-v1"
+            ),
             "planner_coordinate_frame": coordinate_frame,
             "planner_calibration_mode_context": dict(
                 sorted(calibration_context.items())
@@ -423,6 +491,16 @@ def hand_eye_calibration_plan(
             },
             "planner_calibration_probe_repeats": repeats_per_direction,
             "planner_calibration_capture_labels": list(capture_labels),
+            "planner_hand_eye_grid": (
+                {
+                    "shape_xy": [columns, rows],
+                    "spacing_xy_um": [sx, sy],
+                    "traversal": "snake",
+                    "centered_on_anchor": True,
+                }
+                if grid_enabled
+                else None
+            ),
         },
     )
     detectors = (

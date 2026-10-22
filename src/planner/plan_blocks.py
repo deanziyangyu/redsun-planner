@@ -567,9 +567,9 @@ PLAN_BLOCKS = (
     ),
     PlanBlockDescriptor(
         block_id="planner.hand_eye_calibration",
-        contract_version=1,
+        contract_version=2,
         plan_stub=hand_eye_calibration_plan,
-        summary="Capture bidirectional stage probes for a pixel-to-stage calibration fit.",
+        summary="Capture signed stage probes or a configurable XY grid for image-to-stage fitting.",
         parameters=(
             PlanParameterContract(
                 "anchor_xy_um",
@@ -640,6 +640,21 @@ PLAN_BLOCKS = (
                 default=1,
             ),
             PlanParameterContract(
+                "grid_shape_xy",
+                "tuple[int, int] | None",
+                "Optional odd column/row counts for a centered snake grid; overrides signed probes.",
+                required=False,
+                has_default=True,
+            ),
+            PlanParameterContract(
+                "grid_spacing_xy_um",
+                "tuple[float, float] | None",
+                "Optional X/Y grid spacing in reported micrometres; requires grid_shape_xy.",
+                units="um",
+                required=False,
+                has_default=True,
+            ),
+            PlanParameterContract(
                 "mode_context",
                 "Mapping[str, str]",
                 "Camera/objective mode identity recorded with captures.",
@@ -708,10 +723,11 @@ PLAN_BLOCKS = (
             "The host validates fresh stage anchor, exact mode context and physical travel limits.",
             "Exactly one supported combined or separate XY stage binding is supplied.",
             "The camera mode is fixed for every calibration capture.",
+            "For a grid run, odd shape, spacing and total extent are validated before motion.",
         ),
         completion_condition=(
-            "Reference, signed endpoints and closure captures complete; the stage is commanded "
-            "back to the declared anchor after each probe. Fitting remains offline."
+            "Reference and probe/grid captures complete, then the stage is commanded back to "
+            "the declared anchor for closure. Fitting remains offline."
         ),
         failure_condition=(
             "An interrupted move/capture may leave the stage away from the anchor; the host "
