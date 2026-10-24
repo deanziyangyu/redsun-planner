@@ -21,19 +21,16 @@ Requires Python 3.10 or newer. The only runtime dependencies are `numpy` and
 
 ## Install
 
-The bundle builds this distribution from its registered `sample_search`
-submodule through each consumer's lock. The source pin observed on 2026-10-18
-is `dce582bf8347c92b560d10d9c545d0ecbdbe8aa0`; local modifications are separate
-from that commit. A package-index release is not established by that source
-pin. To install a wheel from an explicit checkout, use the intended Python
-environment's installer with that checkout path.
+Use the dependency source and lock policy selected by the consuming host. For
+checkout-based development, install the package from that checkout in the
+intended Python environment. The committed development lock is used by the
+commands below.
 
 From a checkout, with the development tooling:
 
 ```bash
 uv sync --group dev
 ```
-
 ## Quick start
 
 ```python
@@ -53,6 +50,9 @@ print(len(recipe.positions))  # 6
 A recipe descriptor is inert data. The plan generators turn a geometry plus a
 host-supplied camera or flyer into Bluesky plan messages; the host supplies the
 devices and executes the result.
+
+See [operating-point schedules](docs/operating_schedule.md) for the typed,
+feasibility-checked plan path from optimization decisions to segment callbacks.
 
 ## Command line
 
@@ -114,6 +114,7 @@ Unknown keys are rejected at every level.
 | Area | Modules |
 |---|---|
 | Plan generators | `planner.plans`, `planner.search_imaging` |
+| Bluesky plan-block catalog | `planner.plan_blocks` |
 | Recipes and grid geometry | `planner.scanning`, `planner.geometry`, `planner.bounded_scanning` |
 | Two-round search-and-image workflow | `planner.search_imaging` |
 | Command line | `planner.cli`, `python -m planner` |
@@ -124,11 +125,23 @@ Unknown keys are rejected at every level.
 | Hand-eye fit and quality gates | `planner.hand_eye` |
 | Calculations | `planner.acquisition_space`, `planner.simulation`, `planner.broom`, `planner.detection`, `planner.observed_coverage`, `planner.motion_state`, `planner.speed_policy`, `planner.intensity_events`, `planner.roi_decision`, `planner.braking` |
 | SPARTA framework | `planner.sparta`, `planner.operating_map` |
+| Operating-point schedule to Bluesky plan | `planner.operating_schedule` |
 | Structural device contracts | `planner.protocols` |
 
 The public surface is re-exported from `planner/__init__.py` with an explicit
 `__all__`; import from `planner` where the name is available there, and from the
 module otherwise.
+
+For search-to-detail transitions, the causal rise detector can retain the delivered-frame
+ROI origin, extent, readout mode and host-defined signal metric with each trace; see
+[ROI-associated intensity traces](docs/intensity_roi_trace.md). The same signal
+logic covers edge, slit and full-sensor regions and accepts scalar outputs from
+different integration methods.
+
+For exposure-to-position association from an explicit constant-velocity
+segment, see [commanded motion context](docs/commanded_motion.md). The result is
+model-derived with anchor, calibration, clock and uncertainty provenance; it
+is not a measured stage pose.
 
 ## Using it from another host
 
@@ -153,11 +166,24 @@ Runnable, device-free snippets: [examples/](examples/README.md).
 
 ## Plans
 
-[`planner.plans`](src/planner/plans.py) composes Bluesky plan stubs for four
-workflows: snake-grid snap scanning, flyer-based push-broom scanning, bounded
-stage-to-camera hand-eye calibration, and source-only dataset replay. Replay
-preserves source frame/time and scalar source context while making no device
-calls.
+[`planner.plans`](src/planner/plans.py) composes Bluesky plan stubs for
+snake-grid snap scanning, flyer-based push-broom scanning, bounded
+stage-to-camera hand-eye calibration, source-only dataset replay, live flyer
+capture, and square-motion live-median sampling. The two live subplans accept
+the `planner.protocols` flyer/motor contracts and expose callbacks for host
+progress reporting; presenter actions, RunEngine ownership and device policy
+stay in the host. Replay preserves source frame/time and scalar source context
+while making no device calls.
+
+`planner.plan_blocks.PLAN_BLOCKS` describes every public Bluesky plan generator
+in `planner.plans`, `planner.search_imaging` and `planner.operating_schedule`
+with stable identifiers, typed argument metadata, resource requirements,
+physical effects, preconditions, completion/failure conditions and
+validation-evidence slots.
+`get_plan_block()` resolves a descriptor by ID.
+Descriptors point to plan stubs but do not construct a RunEngine, bind host
+devices, enforce host limits or provide presenter callbacks. Pure recipe builders
+and geometry helpers are outside the plan-block catalog.
 
 [`planner.search_imaging`](src/planner/search_imaging.py) adds the two-round
 workflow beside those primitives: it builds the survey and focused revisit
@@ -182,6 +208,7 @@ defines that v1 record contract.
 
 ## Documentation
 
+- [Architecture and host composition](docs/architecture.md)
 - [Examples](examples/README.md)
 - [Two-round search-and-image workflow](docs/search_imaging.md)
 - [SPARTA framework](docs/sparta.md)
@@ -189,6 +216,7 @@ defines that v1 record contract.
 - [Search-and-image simulation](docs/simulation.md)
 - [Adaptive broom timing](docs/broom.md)
 - [Observed coverage handoff](docs/observed_coverage.md)
+- [Plan-block descriptors](docs/plan_blocks.md)
 
 ## Development
 
@@ -204,11 +232,7 @@ uv run prek run --all-files     # the commit hooks, ruff included
 Every test is hardware-free and deterministic. See [AGENTS.md](AGENTS.md) for the
 conventions this package follows.
 
-The committed `uv.lock` owns development-tool resolution; consumer locks own
-their installed planner wheels. Next, verify each consumer against the intended
-planner API and record its source/lock identity, including local modifications.
-Keep portable dependency/release selection separate from the existing bundle
-source pin; a finalized host contract still needs consumer acceptance.
+The committed `uv.lock` owns development-tool resolution. Consumers own their dependency source, compatible package version and lock.
 
 ## License
 

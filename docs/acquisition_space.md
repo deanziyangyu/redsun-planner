@@ -7,6 +7,26 @@ It emits no device command and no Bluesky plan message, creates no RunEngine and
 asserts nothing about hardware capability; plan lowering stays in
 `planner.plans`.
 
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontSize": "15px"}, "flowchart": {"nodeSpacing": 22, "rankSpacing": 35, "padding": 6}, "themeCSS": ".nodeLabel { font-size: 15px; } .cluster-label .nodeLabel { font-size: 15px; } .edgeLabel { font-size: 12px; }"}}%%
+flowchart LR
+    p["AcquisitionPoint"]
+    e["AcquisitionEnvelope"]
+    c["corner or None"]
+    m["metrics_of"]
+    f["feasibility"]
+    r["ranking"]
+
+    p --> m
+    p --> e
+    e --> c
+    m --> f --> r
+    m --> r
+```
+
+*Figure 1. Classification, metrics, feasibility and ranking are separate steps;
+each output is inert data.*
+
 ## Axes and units
 
 | Symbol | Meaning | Unit | Field |

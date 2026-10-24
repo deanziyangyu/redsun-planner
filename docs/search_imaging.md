@@ -20,6 +20,20 @@ same magnification as round two. The two rounds carry independent pixel size and
 resolution, so a lower-magnification overview is one supported choice, never an
 assumption.
 
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontSize": "15px"}, "flowchart": {"nodeSpacing": 22, "rankSpacing": 35, "padding": 6}, "themeCSS": ".nodeLabel { font-size: 15px; } .cluster-label .nodeLabel { font-size: 15px; } .edgeLabel { font-size: 12px; }"}}%%
+flowchart LR
+    field["field + survey spec"]
+    survey["survey plan<br/>overlapping tiles"]
+    review["host detection<br/>+ review"]
+    focused["focused revisit plan"]
+
+    field --> survey --> review --> focused
+```
+
+*Figure 1. The two rounds are separate plans; detection and review between them
+belong to the host.*
+
 ## Why it sits beside the broom plans
 
 `planner.plans` already offers two acquisition primitives: `snap_scan_plan` for
@@ -176,6 +190,46 @@ input. `validate` checks the field, tile and target geometry, frame counts,
 overscan, envelope classification and any declared limits verdicts. An operating
 point that falls between envelope bands has no corner; that is reported as a
 warning, not a validation failure.
+
+## Offline review checkpoint
+
+Hosts that save a `planner-run-v3` review-pending checkpoint can render its
+validated candidates into the package's self-contained accept/reject page with
+`render_review_checkpoint`. The host supplies an image loader for its storage
+format; the planner verifies the checkpoint checksum, candidate manifest,
+calibration context and survey observations before writing the page. The page
+exports a `ReviewDecision` JSON file and cannot access or command hardware.
+
+```python
+from planner import render_review_checkpoint
+
+manifest = render_review_checkpoint(
+    "review-pending.json",
+    "target-review.html",
+    image_loader=load_saved_survey_image,
+)
+print(manifest.sha256)
+```
+
+The image loader must resolve each observation to the matching saved survey
+image. `SearchObservation.dataset_frame_index` carries an explicit zero-based
+index into the dataset named by `data_reference`; hosts must populate and
+validate this association rather than infer it from Zarr, TIFF, RTASPT or
+application-specific URI conventions. To validate an exported decision and
+obtain the ordered focused targets, hosts can call:
+
+```python
+from planner import apply_review_checkpoint
+
+run, decision, targets = apply_review_checkpoint(
+    "review-pending.json",
+    "review-decision.json",
+)
+focused_targets = targets
+```
+
+The checkpoint remains unchanged. The host owns its run-state transition and
+execution record when it starts focused acquisition.
 
 ## Limits of the workflow
 

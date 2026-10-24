@@ -254,6 +254,7 @@ class SearchObservation:
     channel_id: str | None = None
     exposure_ms: float | None = None
     image_shape_yx: tuple[int, int] | None = None
+    dataset_frame_index: int | None = None
 
     def __post_init__(self) -> None:
         """Check the declared fields for consistency."""
@@ -270,6 +271,12 @@ class SearchObservation:
             or any(size < 1 for size in self.image_shape_yx)
         ):
             raise ValueError("image_shape_yx must contain two positive dimensions")
+        if self.dataset_frame_index is not None and (
+            isinstance(self.dataset_frame_index, bool)
+            or not isinstance(self.dataset_frame_index, int)
+            or self.dataset_frame_index < 0
+        ):
+            raise ValueError("dataset_frame_index must be a nonnegative integer")
 
 
 @dataclass(frozen=True)

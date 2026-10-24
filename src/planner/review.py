@@ -107,6 +107,22 @@ class ReviewResult:
 
 
 def _target_record(t: Target) -> dict[str, Any]:
+    observations = []
+    for obs in t.observations:
+        item = {
+            "tile_id": obs.tile_id,
+            "request_id": obs.request_id,
+            "stage_xy_um": obs.stage_xy_um,
+            "data_reference": (
+                vars(obs.data_reference)
+                if isinstance(obs.data_reference, DatasetReference)
+                else obs.data_reference
+            ),
+            "image_shape_yx": obs.image_shape_yx,
+        }
+        if obs.dataset_frame_index is not None:
+            item["dataset_frame_index"] = obs.dataset_frame_index
+        observations.append(item)
     return {
         "target_id": t.target_id,
         "specimen_id": t.specimen_id,
@@ -116,20 +132,7 @@ def _target_record(t: Target) -> dict[str, Any]:
         "y_um": t.y_um,
         "score": t.score,
         "bounds_xyxy_um": t.bounds_xyxy_um,
-        "observations": [
-            {
-                "tile_id": o.tile_id,
-                "request_id": o.request_id,
-                "stage_xy_um": o.stage_xy_um,
-                "data_reference": (
-                    vars(o.data_reference)
-                    if isinstance(o.data_reference, DatasetReference)
-                    else o.data_reference
-                ),
-                "image_shape_yx": o.image_shape_yx,
-            }
-            for o in t.observations
-        ],
+        "observations": observations,
     }
 
 
