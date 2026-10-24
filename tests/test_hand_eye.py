@@ -8,7 +8,6 @@ from planner import (
     HandEyePair,
     evaluate_hand_eye_quality,
     fit_hand_eye,
-    hand_eye_capture_labels,
     matches_hand_eye_mode,
 )
 
@@ -111,43 +110,3 @@ def test_hand_eye_quality_gates_registration_agreement_and_return_closure() -> N
     assert (
         "return_x_positive: stage return error above threshold" in result.failed_checks
     )
-
-
-def test_repeated_hand_eye_labels_and_closure_gates() -> None:
-    labels = hand_eye_capture_labels(3)
-    assert len(labels) == 26
-    assert labels[:2] == ("reference", "reference_repeat")
-    assert labels[2:6] == (
-        "probe_x_positive_repeat_01",
-        "return_x_positive_repeat_01",
-        "probe_x_negative_repeat_01",
-        "return_x_negative_repeat_01",
-    )
-    assert labels[-2:] == (
-        "probe_y_negative_repeat_03",
-        "return_y_negative_repeat_03",
-    )
-
-    closures = [
-        HandEyeClosure(
-            f"return_{axis}_{direction}_repeat_01", (0.1, 0.1), (0.1, 0.1)
-        )
-        for axis in ("x", "y")
-        for direction in ("positive", "negative")
-    ]
-    matrix = np.asarray([[-0.05, 3.82], [3.85, 0.03]])
-    deltas = [(10, 0), (-10, 0), (0, 10), (0, -10)]
-    pairs = [
-        HandEyePair(
-            str(index),
-            delta,
-            tuple(matrix @ np.asarray(delta)),
-            0.9,
-            feature_motion_xy_px=tuple(matrix @ np.asarray(delta)),
-            ransac_inlier_count=50,
-            ransac_inlier_fraction=0.6,
-            ransac_median_residual_px=1.2,
-        )
-        for index, delta in enumerate(deltas)
-    ]
-    assert evaluate_hand_eye_quality(pairs, closures).passed

@@ -105,7 +105,7 @@ class RoiMotionDecisionRecord:
         return normalize(
             {
                 "record_type": "roi_motion_decision",
-                "schema_version": 3,
+                "schema_version": 2,
                 **asdict(self),
             }
         )  # type: ignore[return-value]
@@ -160,22 +160,10 @@ def assess_roi_event_transition(
 
     newest_ns = motion.window_end_ns
     if event.event_time_monotonic_ns < newest_ns:
-        raise ValueError("ROI event precedes the stage-motion fit reference time")
-    freshness_reference_ns = (
-        motion.evaluation_time_ns
-        if motion.evaluation_time_ns is not None
-        else newest_ns
-    )
-    if event.event_time_monotonic_ns < freshness_reference_ns:
-        raise ValueError("ROI event precedes the motion fit freshness evaluation")
+        raise ValueError("ROI event precedes newest stage-position observation")
     extrapolation_s = (event.event_time_monotonic_ns - newest_ns) * 1e-9
     mapping_uncertainty_s = event.time_mapping_uncertainty_ns * 1e-9
-    post_evaluation_s = (
-        event.event_time_monotonic_ns - freshness_reference_ns
-    ) * 1e-9
-    event_age_s = (
-        motion.maximum_sample_age_s + post_evaluation_s + mapping_uncertainty_s
-    )
+    event_age_s = extrapolation_s + mapping_uncertainty_s
     if event_age_s > max_event_sample_age_s:
         raise ValueError("stage observation is too old at the ROI event time")
 
@@ -192,48 +180,8 @@ def assess_roi_event_transition(
         + extrapolation_s * acceleration_se[1]
         + (abs(ay) + acceleration_se[1]) * mapping_uncertainty_s,
     )
-    position_at_fit = motion.current_position_xy_um
-    position_se_at_fit = motion.position_uncertainty_xy_um
-    if (position_at_fit is None) != (position_se_at_fit is None):
-        raise ValueError(
-            "motion fit must provide both current position and its uncertainty"
-        )
-    position_at_event = None
-    position_uncertainty_at_event = None
-    if position_at_fit is not None and position_se_at_fit is not None:
-        fit_bracket_s = motion.maximum_half_bracket_s
-        position_at_event = (
-            position_at_fit[0] + vx * extrapolation_s + 0.5 * ax * extrapolation_s**2,
-            position_at_fit[1] + vy * extrapolation_s + 0.5 * ay * extrapolation_s**2,
-        )
-        position_uncertainty_at_event = (
-            position_se_at_fit[0]
-            + extrapolation_s * velocity_se[0]
-            + 0.5 * extrapolation_s**2 * acceleration_se[0]
-            + (
-                abs(vx)
-                + velocity_se[0]
-                + (abs(ax) + acceleration_se[0]) * extrapolation_s
-            )
-            * mapping_uncertainty_s
-            + (abs(vx) + velocity_se[0]) * fit_bracket_s
-            + 0.5 * (abs(ax) + acceleration_se[0]) * fit_bracket_s**2,
-            position_se_at_fit[1]
-            + extrapolation_s * velocity_se[1]
-            + 0.5 * extrapolation_s**2 * acceleration_se[1]
-            + (
-                abs(vy)
-                + velocity_se[1]
-                + (abs(ay) + acceleration_se[1]) * extrapolation_s
-            )
-            * mapping_uncertainty_s
-            + (abs(vy) + velocity_se[1]) * fit_bracket_s
-            + 0.5 * (abs(ay) + acceleration_se[1]) * fit_bracket_s**2,
-        )
     motion_at_event = replace(
         motion,
-        current_position_xy_um=position_at_event,
-        position_uncertainty_xy_um=position_uncertainty_at_event,
         current_velocity_xy_um_s=propagated_velocity,
         velocity_standard_error_xy_um_s=propagated_velocity_se,
         maximum_sample_age_s=event_age_s,

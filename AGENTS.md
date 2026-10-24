@@ -23,8 +23,6 @@ redsun-planner/
 |   |-- search_imaging.py      two-round survey and focused revisit recipes/plans
 |   |-- bounded_scanning.py    operator-confirmed boundary snap and broom plans
 |   |-- plans.py               Bluesky plan generators (snap, broom, hand-eye, replay)
-|   |-- plan_blocks.py         host-facing contracts for public plan generators
-|   |-- operating_schedule.py  operating-point feasibility and plan orchestration
 |   |-- protocols.py           LiveFlyer and XYMotor device contracts
 |   |-- replay.py              ReplayFrame and the replay source adapter
 |   |-- records.py             run/replay/checkpoint save and load
@@ -34,7 +32,7 @@ redsun-planner/
 |   |-- hand_eye.py            hand-eye fit and quality gates
 |   |-- motion_state.py        stage motion estimation
 |   |-- speed_policy.py        intensity-to-speed calculation
-|   |-- intensity_events.py    ROI-associated intensity-rise detection
+|   |-- intensity_events.py    intensity-rise detection
 |   |-- roi_decision.py        ROI event to motion decision record
 |   |-- braking.py             ROI braking assessment
 |   `-- observed_coverage.py   observed-support coverage fit
@@ -116,11 +114,6 @@ interpreters. Do not use `datetime.UTC`, `StrEnum`, `typing.Self`, `tomllib`,
   key; this package declares neither devices nor plan parameters, so `egu`
   appears nowhere here. Where a unit genuinely cannot be known, an empty string
   is correct and preferable to guessing.
-- Public plan-block callables must be Bluesky generator functions annotated with
-  `bluesky.utils.MsgGenerator`; use `yield from` when a recipe delegates to another
-  plan. This keeps their generator shape visible to Redsun Presenter plan widgets.
-  Keep host callbacks and framework-neutral recipe objects behind an adapter when
-  a widget cannot construct them from typed user controls.
 - Write the application name as **Redsun** in prose and `redsun` in packages,
   modules, paths and identifiers. Never capitalise the second word; that
   camel-case spelling kept reappearing in copied prose, so fix it on sight.
@@ -156,18 +149,21 @@ Every user-visible change adds a towncrier entry file to `changelog.d/`, named
 `<pr>.<type>.md` with `<type>` one of `breaking`, `added`, `changed`,
 `deprecated`, `removed`, `fixed`, `security`. A release collects them into
 `CHANGELOG.md`. A change that breaks existing code also gets a `breaking` entry.
-During one uncommitted change set, keep at most one Towncrier fragment per
-category (`0.added.md`, `0.changed.md`, and so on), revising that category's
-fragment as work evolves. Do not create multiple delta files for a category
-before a new commit is made. After a commit starts the next change set, a fresh
-fragment per category may be added.
 
-## Validation
+## Gate status
 
-Run the configured formatter, linter, strict type checker and hardware-free test
-suite for changes that affect those areas. Use the committed lock and the
-repository CI configuration. Treat prior local results as historical evidence;
-report the checks run for the current change separately.
+`ruff format --check`, `ruff check` and strict `mypy` all pass, and the test
+suite passes. Keep them green. The type check was worth running: it found real
+defects, not only missing annotations, in `replay.py` (an unreachable
+`isinstance` chain and a wrongly annotated local), `motion_state.py` (unchecked
+`int()` on parsed JSON and `tuple[float, ...]` where a 2-tuple was declared) and
+`hand_eye.py` (optional RANSAC metrics used without narrowing, and matrices
+rebuilt as ragged tuples).
+
+`uv.lock` is committed, and `prek.toml` and the CI workflows pass `--locked`, so
+the hooks, the type check and the tests resolve the same numpy and ophyd versions
+a fresh runner installs.
+
 ## Updating this guide
 
 Say **"Update AGENTS.md with..."** to persist a convention here. Durable,

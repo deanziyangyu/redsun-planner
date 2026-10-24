@@ -1,6 +1,8 @@
 # Examples
 
-Runnable examples from a checkout:
+Runnable snippets that need only `numpy` and this package. None of them imports a
+Bluesky RunEngine, opens a device, or writes a file, so you can run them straight
+from a checkout:
 
 ```bash
 PYTHONPATH=src python examples/01_recipe_and_tiles.py
@@ -12,12 +14,6 @@ PYTHONPATH=src python examples/01_recipe_and_tiles.py
 | [`02_detect_and_place.py`](02_detect_and_place.py) | detect bright objects in a synthetic frame and place them on the stage through a calibration |
 | [`03_hand_eye_fit.py`](03_hand_eye_fit.py) | fit the stage-to-camera transform from measured pairs and run the quality gates |
 | [`04_presenter_plan_bundle.py`](04_presenter_plan_bundle.py) | offer plans through a Redsun-style presenter `plan_map` and run one entry under a RunEngine |
-| [`05_live_plan_stubs.py`](05_live_plan_stubs.py) | construct live-stream and median-scan generators without creating a RunEngine or opening devices |
-
-Examples 01–03 use calculations only. Example 04 intentionally creates a
-Bluesky RunEngine to demonstrate document callbacks and dataset replay. Example
-05 inspects a median-scan message sequence and constructs a status-dependent
-live-capture generator without running it.
 
 ## Where the framework boundary is
 

@@ -9,22 +9,6 @@ overscan and stage-envelope violations. Mask holes remain unsupported target
 pixels; the returned record references the durable mask instead of embedding
 its bytes.
 
-```mermaid
-%%{init: {"theme": "base", "themeVariables": {"fontSize": "15px"}, "flowchart": {"nodeSpacing": 22, "rankSpacing": 35, "padding": 6}, "themeCSS": ".nodeLabel { font-size: 15px; } .cluster-label .nodeLabel { font-size: 15px; } .edgeLabel { font-size: 12px; }"}}%%
-flowchart LR
-    mask["support mask<br/>+ identities"]
-    affine["pixel → stage affine"]
-    fit["fit_snap_grid_to_coverage"]
-    record["ObservedSnapGridFit<br/>coverage + overscan"]
-
-    mask --> fit
-    affine --> fit
-    fit --> record
-```
-
-*Figure 1. A support mask and a pixel-to-stage affine produce a fitted snap
-grid, not a confirmed boundary.*
-
 Keep `mask_reference` valid for the saved fit record: use a path relative to
 the fit's directory, or include a `source_coverage_record` path in the fit. The
 IX83 host then resolves `mask_reference` relative to that source record. The

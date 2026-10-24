@@ -14,13 +14,9 @@ resolution fields, so the survey may run at the focused magnification.
 
 from __future__ import annotations
 
-# Host plan widgets resolve these plan annotations at runtime.
-from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from math import ceil, isfinite
-from typing import Any
-
-from bluesky.utils import MsgGenerator
+from typing import TYPE_CHECKING, Any
 
 from .acquisition_space import (
     AcquisitionEnvelope,
@@ -40,6 +36,9 @@ from .simulation import (
     SurveyTile,
     simulate_search_imaging,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Mapping, Sequence
 
 DEFAULT_SURVEY_STREAM = "survey"
 DEFAULT_FOCUSED_STREAM = "focused"
@@ -664,7 +663,7 @@ def survey_scan_plan(
     capture_one: Callable[[Any, bool], Iterable[Any]] | None = None,
     md: Mapping[str, Any] | None = None,
     stream_name: str = DEFAULT_SURVEY_STREAM,
-) -> MsgGenerator[Any]:
+) -> Iterable[Any]:
     """Emit the round-one survey plan: one run over the overlapping tiles.
 
     Device arguments mirror :func:`planner.plans.snap_scan_plan`, which this
@@ -683,7 +682,7 @@ def survey_scan_plan(
             "planner_search_review_boundary": "host-owned detection and review",
         },
     )
-    yield from snap_scan_plan(
+    return snap_scan_plan(
         survey_recipe,
         stage_xy=stage_xy,
         stage_x=stage_x,
@@ -712,7 +711,7 @@ def focused_revisit_plan(
     capture_one: Callable[[Any, bool], Iterable[Any]] | None = None,
     md: Mapping[str, Any] | None = None,
     stream_name: str = DEFAULT_FOCUSED_STREAM,
-) -> MsgGenerator[Any]:
+) -> Iterable[Any]:
     """Emit the round-two focused plan: one run over the host-selected targets.
 
     Device arguments mirror :func:`planner.plans.snap_scan_plan`, which this
@@ -735,7 +734,7 @@ def focused_revisit_plan(
             ],
         },
     )
-    yield from snap_scan_plan(
+    return snap_scan_plan(
         focused_recipe,
         stage_xy=stage_xy,
         stage_x=stage_x,
