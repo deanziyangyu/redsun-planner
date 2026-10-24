@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:redsun-planner:schema:roi-motion-decision:2",
+  "$id": "urn:redsun-planner:schema:roi-motion-decision:3",
   "title": "ROI motion decision record",
   "description": "Versioned evidence record joining one mapped ROI intensity event with its source stage-motion fit and calibrated braking assessment. It is a planning/replay record, not a device command or proof of synchronization.",
   "type": "object",
@@ -27,7 +27,7 @@
   ],
   "properties": {
     "record_type": { "const": "roi_motion_decision" },
-    "schema_version": { "const": 2 },
+    "schema_version": { "const": 3 },
     "event": {
       "type": "object",
       "additionalProperties": false,
@@ -218,6 +218,8 @@
       "additionalProperties": false,
       "required": [
         "request_id",
+        "current_position_xy_um",
+        "position_uncertainty_xy_um",
         "current_velocity_xy_um_s",
         "current_acceleration_xy_um_s2",
         "velocity_standard_error_xy_um_s",
@@ -236,6 +238,18 @@
       ],
       "properties": {
         "request_id": { "type": "string", "minLength": 1 },
+        "current_position_xy_um": {
+          "oneOf": [
+            { "$ref": "#/$defs/xyNumber" },
+            { "type": "null" }
+          ]
+        },
+        "position_uncertainty_xy_um": {
+          "oneOf": [
+            { "$ref": "#/$defs/nonnegativeXY" },
+            { "type": "null" }
+          ]
+        },
         "current_velocity_xy_um_s": { "$ref": "#/$defs/xyNumber" },
         "current_acceleration_xy_um_s2": { "$ref": "#/$defs/xyNumber" },
         "velocity_standard_error_xy_um_s": {
