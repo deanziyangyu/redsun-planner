@@ -20,6 +20,20 @@ same magnification as round two. The two rounds carry independent pixel size and
 resolution, so a lower-magnification overview is one supported choice, never an
 assumption.
 
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontSize": "15px"}, "flowchart": {"nodeSpacing": 22, "rankSpacing": 35, "padding": 6}, "themeCSS": ".nodeLabel { font-size: 15px; } .cluster-label .nodeLabel { font-size: 15px; } .edgeLabel { font-size: 12px; }"}}%%
+flowchart LR
+    field["field + survey spec"]
+    survey["survey plan<br/>overlapping tiles"]
+    review["host detection<br/>+ review"]
+    focused["focused revisit plan"]
+
+    field --> survey --> review --> focused
+```
+
+*Figure 1. The two rounds are separate plans; detection and review between them
+belong to the host.*
+
 ## Why it sits beside the broom plans
 
 `planner.plans` already offers two acquisition primitives: `snap_scan_plan` for

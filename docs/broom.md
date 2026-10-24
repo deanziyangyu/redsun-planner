@@ -4,6 +4,20 @@
 mock samples. It reports the adaptive run beside two regular-broom baselines, so
 the cost of the speed modulation is explicit rather than buried in one total.
 
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontSize": "15px"}, "flowchart": {"nodeSpacing": 22, "rankSpacing": 35, "padding": 6}, "themeCSS": ".nodeLabel { font-size: 15px; } .cluster-label .nodeLabel { font-size: 15px; } .edgeLabel { font-size: 12px; }"}}%%
+flowchart LR
+    spec["BroomSpec<br/>field, FOV, dwell"]
+    profile["row speed profile<br/>dwell, ramp, cruise"]
+    time["travel, slow,<br/>transition, fast"]
+    report["BroomReport<br/>+ baselines"]
+
+    spec --> profile --> time --> report
+```
+
+*Figure 1. Declared samples shape one row's speed profile; integrating it gives
+the report's time components and both baselines.*
+
 ## Inputs
 
 `BroomSpec` combines a rectangular field, a square field of view, the row pitch,

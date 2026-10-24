@@ -13,6 +13,22 @@ and a conservative axis-wise error bound. The bound sums anchor, velocity and
 clock-mapping contributions, including their first-order cross term, without
 assuming that the sources are statistically independent.
 
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontSize": "15px"}, "flowchart": {"nodeSpacing": 22, "rankSpacing": 35, "padding": 6}, "themeCSS": ".nodeLabel { font-size: 15px; } .cluster-label .nodeLabel { font-size: 15px; } .edgeLabel { font-size: 12px; }"}}%%
+flowchart LR
+    anchor["anchor + velocity<br/>+ error bounds"]
+    model["ConstantVelocityMotionModel<br/>clock, frame, ids"]
+    exp["exposure interval<br/>same clock"]
+    pose["model_exposure_position<br/>midpoint + error"]
+
+    anchor --> model
+    exp --> pose
+    model --> pose
+```
+
+*Figure 1. The model predicts a pose only for an exposure whose midpoint lies
+inside the declared segment and clock domain.*
+
 The result is always labelled `commanded_constant_velocity_model`. It is a
 trajectory prediction, not a stage readback or exposure-synchronized
 measurement. Callers must provide the clock association, anchor, calibration

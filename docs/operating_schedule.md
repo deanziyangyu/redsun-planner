@@ -8,6 +8,23 @@ ROI/binning, optional virtual slit, metrics snapshot, thresholds, utility,
 measurement verdict and calibration/pose identifiers. The request also records
 recipe, coordinate-frame, timestamp and planner software-version provenance.
 
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontSize": "15px"}, "flowchart": {"nodeSpacing": 22, "rankSpacing": 35, "padding": 6}, "themeCSS": ".nodeLabel { font-size: 15px; } .cluster-label .nodeLabel { font-size: 15px; } .edgeLabel { font-size: 12px; }"}}%%
+flowchart LR
+    req["OperatingPointRequest<br/>ordered segments"]
+    cap["capabilities<br/>snapshot"]
+    assess["assess request<br/>per segment"]
+    plan["schedule plan<br/>accepted only"]
+    callbacks["host callbacks<br/>per segment"]
+
+    req --> assess
+    cap --> assess
+    assess --> plan --> callbacks
+```
+
+*Figure 1. Only an accepted request reaches the schedule plan, which invokes the
+host callbacks in segment order inside one run.*
+
 The `path_start_xy_um` and `path_end_xy_um` are the complete commanded segment
 endpoints, including any acceleration or deceleration overrun that must remain
 inside the travel envelope. `OperatingPointCapabilities` declares the sensor

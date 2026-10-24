@@ -208,6 +208,7 @@ defines that v1 record contract.
 
 ## Documentation
 
+- [Architecture and host composition](docs/architecture.md)
 - [Examples](examples/README.md)
 - [Two-round search-and-image workflow](docs/search_imaging.md)
 - [SPARTA framework](docs/sparta.md)

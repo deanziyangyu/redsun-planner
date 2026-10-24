@@ -14,6 +14,20 @@ for parameter in block.parameters:
 view_model = block.to_view_model()
 ```
 
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontSize": "15px"}, "flowchart": {"nodeSpacing": 22, "rankSpacing": 35, "padding": 6}, "themeCSS": ".nodeLabel { font-size: 15px; } .cluster-label .nodeLabel { font-size: 15px; } .edgeLabel { font-size: 12px; }"}}%%
+flowchart LR
+    stub["plan generator<br/>MsgGenerator"]
+    descriptor["descriptor<br/>signature checks"]
+    catalog["PLAN_BLOCKS"]
+    view["to_view_model()"]
+
+    stub --> descriptor --> catalog --> view
+```
+
+*Figure 1. A descriptor is built from the callable and checked against it; the
+view model omits the callable.*
+
 Each descriptor records its contract version, plan callable, argument names and
 types, units/defaults, structural device contracts, typed resource requirements
 and sharing modes, physical effects, preconditions, completion/failure conditions,

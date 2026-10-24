@@ -20,6 +20,23 @@ roi = IntensityRoiSpec(
 trace = detect_intensity_rise(signal_samples, roi=roi)
 ```
 
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontSize": "15px"}, "flowchart": {"nodeSpacing": 22, "rankSpacing": 35, "padding": 6}, "themeCSS": ".nodeLabel { font-size: 15px; } .cluster-label .nodeLabel { font-size: 15px; } .edgeLabel { font-size: 12px; }"}}%%
+flowchart LR
+    scalar["host ROI scalar"]
+    roi["IntensityRoiSpec"]
+    det["IntensityRiseDetector"]
+    event["IntensityEventSample"]
+    speed["SpeedBlendController"]
+
+    scalar --> det
+    roi --> det
+    det --> event --> speed
+```
+
+*Figure 1. The host turns frames into one scalar per ROI; the planner consumes
+the scalar, never the image.*
+
 For per-frame host decisions, use `IntensityRiseDetector` and call `update`
 once per delivered ROI signal. It retains only baseline/event state and returns
 an `IntensityEventSample` immediately. A new detector instance starts a new

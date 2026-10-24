@@ -8,7 +8,9 @@ application utility and a feasibility envelope.
 
 SPARTA is a name for the idea, not a vocabulary users must learn before calling
 the planner. Start with the ordinary types and functions; the framework name
-belongs in the paper, the top-level README and this page.
+belongs in the paper, the top-level README and this page. The
+[architecture page](architecture.md) diagrams the model and its place between a
+host and Bluesky.
 
 ## What lives where
 
@@ -21,6 +23,22 @@ belongs in the paper, the top-level README and this page.
 | Operating-space traces | `planner.operating_map` |
 | Operating-point schedule and plan lowering | `planner.operating_schedule` |
 | HTML reports | `planner.report_html` |
+
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontSize": "15px"}, "flowchart": {"nodeSpacing": 22, "rankSpacing": 35, "padding": 6}, "themeCSS": ".nodeLabel { font-size: 15px; } .cluster-label .nodeLabel { font-size: 15px; } .edgeLabel { font-size: 12px; }"}}%%
+flowchart LR
+    name["SPARTA"]
+    space["acquisition_space<br/>state, corners, utility"]
+    traces["operating_map<br/>traces + projections"]
+    schedule["operating_schedule<br/>lowering"]
+
+    name --> space
+    space --> traces
+    space --> schedule
+```
+
+*Figure 1. The framework name maps to plain modules; no ordinary type carries a
+`Sparta` prefix.*
 
 The day-to-day API keeps plain names:
 
