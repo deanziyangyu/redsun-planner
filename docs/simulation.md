@@ -7,20 +7,6 @@ reads no pixels and makes no claim about detector recall; the targets are mock
 positions, not detections. The report is a planning estimate, not a timing
 measurement.
 
-```mermaid
-%%{init: {"theme": "base", "themeVariables": {"fontSize": "15px"}, "flowchart": {"nodeSpacing": 22, "rankSpacing": 35, "padding": 6}, "themeCSS": ".nodeLabel { font-size: 15px; } .cluster-label .nodeLabel { font-size: 15px; } .edgeLabel { font-size: 12px; }"}}%%
-flowchart LR
-    spec["SearchImagingSpec"]
-    tiles["tile grid +<br/>mock targets"]
-    sim["simulate_search_imaging"]
-    report["SimulationReport<br/>corners + throughput"]
-
-    spec --> tiles --> sim --> report
-```
-
-*Figure 1. The simulator turns a declared specification and mock targets into a
-report, not a measurement.*
-
 ## Inputs
 
 `SearchImagingSpec` combines a rectangular field, two round specifications, a

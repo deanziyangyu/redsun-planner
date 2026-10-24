@@ -9,11 +9,7 @@ from dataclasses import asdict, is_dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
-    from .review import ReviewManifest
+from typing import Any, cast
 
 from .contracts import (
     AcquisitionSettings,
@@ -31,14 +27,7 @@ from .contracts import (
     WorkflowRun,
 )
 from .geometry import Calibration, Region, deduplicate_targets
-from .review import (
-    ReviewContext,
-    ReviewDecision,
-    apply_review,
-    create_manifest,
-    decision_from_json,
-    render_review_html,
-)
+from .review import ReviewContext, create_manifest
 
 # Persisted document schema identifiers. These are frozen on-disk tags, not
 # importable module names: a reader accepts exactly the value the writer emits.
@@ -57,7 +46,7 @@ def save_replay(path: str | Path, observations: Sequence[SearchObservation]) -> 
 
 def _observation_record(obs: SearchObservation) -> dict[str, Any]:
     objects = obs.value if isinstance(obs.value, (tuple, list)) else ()
-    record = {
+    return {
         "specimen_id": obs.specimen_id,
         "phase": obs.phase.value,
         "coordinate_frame": obs.coordinate_frame,
@@ -75,7 +64,6 @@ def _observation_record(obs: SearchObservation) -> dict[str, Any]:
         "channel_id": obs.channel_id,
         "exposure_ms": obs.exposure_ms,
         "image_shape_yx": obs.image_shape_yx,
-        "dataset_frame_index": obs.dataset_frame_index,
         "detections": [
             {
                 "x_pixel": float(d.x_pixel),
@@ -87,7 +75,6 @@ def _observation_record(obs: SearchObservation) -> dict[str, Any]:
             for d in objects
         ],
     }
-    return record
 
 
 def to_record_value(value: Any) -> Any:
@@ -285,73 +272,6 @@ def load_review_run(
     return run, recipe, calibration, region, full_calibration
 
 
-def render_review_checkpoint(
-    checkpoint_path: str | Path,
-    output_html_path: str | Path,
-    image_loader: Callable[[SearchObservation], Any],
-    *,
-    include_region: bool = True,
-) -> ReviewManifest:
-    """Render a verified review-pending run as a self-contained review page.
-
-    The caller provides the storage adapter that resolves each saved survey
-    observation to an image array. The planner validates the checkpoint,
-    targets and calibration context, then writes the existing accept/reject
-    review page. This helper never opens an acquisition backend.
-    """
-    run, _recipe, calibration, region, _full_calibration = load_review_run(
-        checkpoint_path
-    )
-    context = ReviewContext(
-        run.run_id,
-        run.specimen_id,
-        calibration.coordinate_frame,
-        calibration.calibration_id,
-    )
-    return render_review_html(
-        output_html_path,
-        context,
-        run.targets,
-        run.observations,
-        image_loader,
-        calibration,
-        region=region if include_region else None,
-    )
-
-
-def apply_review_checkpoint(
-    checkpoint_path: str | Path,
-    decision_path: str | Path,
-) -> tuple[WorkflowRun, ReviewDecision, tuple[Target, ...]]:
-    """Validate an exported decision and return the reviewed target sequence.
-
-    The checkpoint is read-only. A host can use the returned targets to build
-    its focused-revisit recipe, then persist a resumed run under its own
-    execution lifecycle.
-    """
-    run, recipe, calibration, region, _full_calibration = load_review_run(
-        checkpoint_path
-    )
-    decision = decision_from_json(decision_path)
-    context = ReviewContext(
-        run.run_id,
-        run.specimen_id,
-        calibration.coordinate_frame,
-        calibration.calibration_id,
-    )
-    max_targets = recipe.max_targets
-    if max_targets is None:
-        max_targets = len(run.targets) + len(decision.additions)
-    result = apply_review(
-        decision,
-        run.targets,
-        context=context,
-        region=region,
-        max_targets=max_targets,
-    )
-    return run, decision, result.targets
-
-
 def _calibration_from_record(item: Mapping[str, Any]) -> Calibration:
     matrix = cast(
         "tuple[tuple[float, float], tuple[float, float]]",
@@ -458,7 +378,6 @@ def _observations_from_records(
                 image_shape_yx=tuple(item["image_shape_yx"])
                 if item.get("image_shape_yx")
                 else None,
-                dataset_frame_index=item.get("dataset_frame_index"),
             )
         )
     return tuple(records)
@@ -505,7 +424,6 @@ def load_replay(path: str | Path) -> tuple[SearchObservation, ...]:
                 image_shape_yx=tuple(item["image_shape_yx"])
                 if item.get("image_shape_yx")
                 else None,
-                dataset_frame_index=item.get("dataset_frame_index"),
             )
         )
     return tuple(records)

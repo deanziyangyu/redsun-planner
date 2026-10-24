@@ -55,35 +55,6 @@ CAPTURE_LABELS = (
 )
 
 
-def hand_eye_capture_labels(repeats_per_direction: int = 1) -> tuple[str, ...]:
-    """Return the event labels for one hand-eye run with repeated probes.
-
-    Parameters
-    ----------
-    repeats_per_direction
-        Number of complete signed X/Y probe cycles. One preserves the original
-        capture labels; multiple cycles suffix each probe and return label with
-        its one-based repeat number.
-    """
-    if (
-        isinstance(repeats_per_direction, bool)
-        or not isinstance(repeats_per_direction, int)
-        or repeats_per_direction < 1
-    ):
-        raise ValueError("repeats_per_direction must be a positive integer")
-    labels = list(CAPTURE_LABELS[:2])
-    for repeat_index in range(1, repeats_per_direction + 1):
-        suffix = f"_repeat_{repeat_index:02d}" if repeats_per_direction > 1 else ""
-        for probe_label, return_label in (
-            ("probe_x_positive", "return_x_positive"),
-            ("probe_x_negative", "return_x_negative"),
-            ("probe_y_positive", "return_y_positive"),
-            ("probe_y_negative", "return_y_negative"),
-        ):
-            labels.extend((f"{probe_label}{suffix}", f"{return_label}{suffix}"))
-    return tuple(labels)
-
-
 @dataclass(frozen=True)
 class HandEyePair:
     """One measured readback delta and its registered feature displacement."""
@@ -384,12 +355,8 @@ def evaluate_hand_eye_quality(
             if not np.any(stage_deltas[:, axis] < 0):
                 failed.append(f"missing negative {name} registration pair")
     available_closures = {closure.label for closure in closures}
-    for required in sorted(required_closures):
-        if not any(
-            label == required or label.startswith(f"{required}_repeat_")
-            for label in available_closures
-        ):
-            failed.append(f"missing closure evidence: {required}")
+    for missing in sorted(required_closures - available_closures):
+        failed.append(f"missing closure evidence: {missing}")
     for pair in pairs:
         prefix = f"{pair.pair_id}: "
         if pair.registration_score < criteria.minimum_ecc_score:
