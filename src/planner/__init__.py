@@ -83,6 +83,13 @@ from .observed_coverage import (
     ObservedSnapTile,
     fit_snap_grid_to_coverage,
 )
+from .operating_map import (
+    OperatingPoint,
+    OperatingTrace,
+    broom_trace,
+    build_operating_payload,
+    snap_traces,
+)
 from .operating_schedule import (
     OperatingPointCapabilities,
     OperatingPointDecision,
@@ -90,13 +97,6 @@ from .operating_schedule import (
     OperatingPointSegment,
     assess_operating_point_request,
     operating_point_schedule_plan,
-)
-from .operating_map import (
-    OperatingPoint,
-    OperatingTrace,
-    broom_trace,
-    build_operating_payload,
-    snap_traces,
 )
 from .plan_blocks import (
     PLAN_BLOCKS,
@@ -116,7 +116,6 @@ from .plans import (
     teardown_live_stream,
 )
 from .protocols import LiveFlyer, XYMotor
-from .roi_geometry import LeadingEdgeRoiProposal, calibrated_leading_edge_roi
 from .records import (
     apply_review_checkpoint,
     load_replay,
@@ -145,6 +144,7 @@ from .roi_decision import (
     RoiMotionDecisionRecord,
     assess_roi_event_transition,
 )
+from .roi_geometry import LeadingEdgeRoiProposal, calibrated_leading_edge_roi
 from .scanning import ScanPosition, StageScanRecipe, build_grid_recipe, grid_positions
 from .search_imaging import (
     FocusedTarget,

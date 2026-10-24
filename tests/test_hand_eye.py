@@ -129,9 +129,7 @@ def test_repeated_hand_eye_labels_and_closure_gates() -> None:
     )
 
     closures = [
-        HandEyeClosure(
-            f"return_{axis}_{direction}_repeat_01", (0.1, 0.1), (0.1, 0.1)
-        )
+        HandEyeClosure(f"return_{axis}_{direction}_repeat_01", (0.1, 0.1), (0.1, 0.1))
         for axis in ("x", "y")
         for direction in ("positive", "negative")
     ]

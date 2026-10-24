@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from inspect import isgenerator
-from typing import Any
+from typing import Any, cast
 
-from planner import live_median_scan, live_stream
+from planner import LiveFlyer, XYMotor, live_median_scan, live_stream
 
 
 class BufferStub:
@@ -38,8 +38,8 @@ class MotorStub:
     axis = {"x": AxisStub("demo-x"), "y": AxisStub("demo-y")}
 
 
-detector = FlyerStub()
-motor = MotorStub()
+detector = cast("LiveFlyer", FlyerStub())
+motor = cast("XYMotor", MotorStub())
 
 # The median scan's messages can be inspected without running them because no
 # message return value controls the plan's Python flow.

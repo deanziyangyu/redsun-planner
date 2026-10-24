@@ -323,7 +323,10 @@ class StageAxisPositionObservation:
             raise ValueError("midpoint_estimate_ns must be an integer")
         if self.midpoint_estimate_ns < 0:
             raise ValueError("midpoint_estimate_ns must be nonnegative")
-        if not isinstance(self.call_bracket_ns, tuple) or len(self.call_bracket_ns) != 2:
+        if (
+            not isinstance(self.call_bracket_ns, tuple)
+            or len(self.call_bracket_ns) != 2
+        ):
             raise ValueError("call_bracket_ns must contain start and end")
         start_ns, end_ns = self.call_bracket_ns
         if any(
@@ -626,13 +629,16 @@ def estimate_stage_motion_from_axes(
             [sample.position_um for sample in window], dtype=np.float64
         )
         times_s = offsets_ns * 1e-9
-        intervals = np.asarray(
-            [
-                current.midpoint_estimate_ns - previous.midpoint_estimate_ns
-                for previous, current in pairwise(window)
-            ],
-            dtype=np.float64,
-        ) * 1e-9
+        intervals = (
+            np.asarray(
+                [
+                    current.midpoint_estimate_ns - previous.midpoint_estimate_ns
+                    for previous, current in pairwise(window)
+                ],
+                dtype=np.float64,
+            )
+            * 1e-9
+        )
         age_s = (evaluation_time_ns - window[-1].midpoint_estimate_ns) * 1e-9
         half_widths = np.asarray(
             [
@@ -653,19 +659,13 @@ def estimate_stage_motion_from_axes(
         residuals = positions - design @ coefficients
         rms = float(np.sqrt(np.mean(residuals**2)))
         dof = max(1, window_samples_per_axis - design.shape[1])
-        variance = max(
-            position_uncertainty_um**2, float(np.sum(residuals**2) / dof)
-        )
+        variance = max(position_uncertainty_um**2, float(np.sum(residuals**2) / dof))
         covariance = np.linalg.pinv(design.T @ design)
         velocities.append(float(coefficients[1]))
         accelerations.append(float(coefficients[2]))
         positions_at_fit.append(float(coefficients[0]))
-        position_errors.append(
-            float(np.sqrt(max(0.0, covariance[0, 0] * variance)))
-        )
-        velocity_errors.append(
-            float(np.sqrt(max(0.0, covariance[1, 1] * variance)))
-        )
+        position_errors.append(float(np.sqrt(max(0.0, covariance[0, 0] * variance))))
+        velocity_errors.append(float(np.sqrt(max(0.0, covariance[1, 1] * variance))))
         acceleration_errors.append(
             float(np.sqrt(max(0.0, covariance[2, 2] * variance)))
         )

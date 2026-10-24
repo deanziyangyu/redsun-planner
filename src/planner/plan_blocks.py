@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from inspect import Parameter, isgeneratorfunction, signature
 from math import isfinite
-from typing import Any, get_origin, get_type_hints
+from typing import TYPE_CHECKING, Any, get_origin, get_type_hints
 
 from bluesky.utils import MsgGenerator
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
 
 from .contracts import ResourceRequirement
 from .operating_schedule import operating_point_schedule_plan
@@ -58,9 +60,7 @@ class PlanParameterContract:
             raise ValueError("parameter required/default flags must be booleans")
         if self.required and self.has_default:
             raise ValueError("a required parameter cannot declare a default")
-        scalar_default = isinstance(
-            self.default, (str, int, float, bool, type(None))
-        )
+        scalar_default = isinstance(self.default, (str, int, float, bool, type(None)))
         empty_sequence_default = isinstance(self.default, tuple) and not self.default
         if not scalar_default and not empty_sequence_default:
             raise ValueError("defaults must be scalar values or an empty tuple")
@@ -482,7 +482,9 @@ PLAN_BLOCKS = (
             PlanParameterContract(
                 "recipe", "BroomScanPlan", "Validated ordered strip geometry."
             ),
-            PlanParameterContract("flyer", "Flyer", "Bluesky strip motion/capture device."),
+            PlanParameterContract(
+                "flyer", "Flyer", "Bluesky strip motion/capture device."
+            ),
             PlanParameterContract(
                 "detectors",
                 "Sequence[Readable]",
@@ -793,7 +795,9 @@ PLAN_BLOCKS = (
                 "detectors", "Sequence[LiveFlyer]", "Flyers to prepare."
             ),
             PlanParameterContract(
-                "trigger_info", "TriggerInfo", "Trigger configuration passed to each flyer."
+                "trigger_info",
+                "TriggerInfo",
+                "Trigger configuration passed to each flyer.",
             ),
             PlanParameterContract(
                 "stream_name", "str", "Optional stream declaration name."
@@ -840,7 +844,9 @@ PLAN_BLOCKS = (
         summary="Complete live flyers, collect their assets, and unstage them.",
         parameters=(
             PlanParameterContract(
-                "detectors", "Sequence[LiveFlyer]", "Active flyers to complete and drain."
+                "detectors",
+                "Sequence[LiveFlyer]",
+                "Active flyers to complete and drain.",
             ),
             PlanParameterContract(
                 "stream_name", "str", "Name of the active event stream."

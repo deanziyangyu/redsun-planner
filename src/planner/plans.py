@@ -10,7 +10,7 @@ from __future__ import annotations
 # Host plan widgets resolve these plan annotations at runtime.
 import json
 import math
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence  # noqa: TC003
 from itertools import chain
 from math import isfinite
 from typing import Any
@@ -18,12 +18,12 @@ from uuid import uuid4
 
 from bluesky import plan_stubs as bps
 from bluesky import preprocessors as bpp
-from bluesky.utils import MsgGenerator
+from bluesky.utils import MsgGenerator  # noqa: TC002
 
 from .bounded_scanning import BroomScanPlan, SnapScanPlan
 from .hand_eye import hand_eye_capture_labels
 from .observed_coverage import ObservedSnapGridFit
-from .protocols import LiveFlyer, XYMotor
+from .protocols import LiveFlyer, XYMotor  # noqa: TC001
 from .replay import ReplayFrame, ReplaySource, _ReplayFrameReadable
 from .scanning import ScanPosition, StageScanRecipe
 
@@ -321,22 +321,22 @@ def hand_eye_calibration_plan(
         if (
             len(grid_shape_xy) != 2
             or any(
-                isinstance(v, bool) or not isinstance(v, int) or v < 3 or v % 2 == 0
+                isinstance(v, bool)
+                or not isinstance(v, int)
+                or v < 3
+                or v % 2 == 0
                 or v > 15
                 for v in grid_shape_xy
             )
             or grid_shape_xy[0] * grid_shape_xy[1] > 225
         ):
             raise ValueError("grid_shape_xy must be odd dimensions from 3 to 15")
-        if (
-            len(grid_spacing_xy_um) != 2
-            or any(
-                isinstance(v, bool)
-                or not isinstance(v, (int, float))
-                or not math.isfinite(v)
-                or v <= 0
-                for v in grid_spacing_xy_um
-            )
+        if len(grid_spacing_xy_um) != 2 or any(
+            isinstance(v, bool)
+            or not isinstance(v, (int, float))
+            or not math.isfinite(v)
+            or v <= 0
+            for v in grid_spacing_xy_um
         ):
             raise ValueError("grid_spacing_xy_um must contain positive finite XY steps")
         if repeats_per_direction != 1:
@@ -349,9 +349,7 @@ def hand_eye_calibration_plan(
                 f"grid_y{row:02d}_x{column:02d}"
                 for row in range(rows)
                 for column in (
-                    range(columns)
-                    if row % 2 == 0
-                    else range(columns - 1, -1, -1)
+                    range(columns) if row % 2 == 0 else range(columns - 1, -1, -1)
                 )
             ),
             "anchor_return",
@@ -456,9 +454,7 @@ def hand_eye_calibration_plan(
         center_x, center_y = (columns - 1) / 2, (rows - 1) / 2
         for row in range(rows):
             column_order = (
-                range(columns)
-                if row % 2 == 0
-                else range(columns - 1, -1, -1)
+                range(columns) if row % 2 == 0 else range(columns - 1, -1, -1)
             )
             for column in column_order:
                 schedule.append(

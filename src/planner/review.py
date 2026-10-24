@@ -109,7 +109,7 @@ class ReviewResult:
 def _target_record(t: Target) -> dict[str, Any]:
     observations = []
     for obs in t.observations:
-        item = {
+        item: dict[str, Any] = {
             "tile_id": obs.tile_id,
             "request_id": obs.request_id,
             "stage_xy_um": obs.stage_xy_um,

@@ -11,7 +11,7 @@ from types import MappingProxyType
 from typing import Any, Literal
 
 from bluesky import preprocessors as bpp
-from bluesky.utils import MsgGenerator
+from bluesky.utils import MsgGenerator  # noqa: TC002
 
 from .acquisition_space import OperatingCorner
 
@@ -135,14 +135,23 @@ class OperatingPointSegment:
         if not isinstance(self.corner, OperatingCorner):
             raise TypeError("corner must be an OperatingCorner")
         for name in (
-            "direction_xy", "path_start_xy_um", "path_end_xy_um", "sensor_shape_yx",
-            "sensor_roi_xywh", "binning_yx", "measurement_reasons",
+            "direction_xy",
+            "path_start_xy_um",
+            "path_end_xy_um",
+            "sensor_shape_yx",
+            "sensor_roi_xywh",
+            "binning_yx",
+            "measurement_reasons",
         ):
             if not isinstance(getattr(self, name), tuple):
                 raise TypeError(f"{name} must be a tuple")
         for name in (
-            "velocity_um_s", "length_um", "acceleration_um_s2", "exposure_s",
-            "frame_period_s", "detection_width_um",
+            "velocity_um_s",
+            "length_um",
+            "acceleration_um_s2",
+            "exposure_s",
+            "frame_period_s",
+            "detection_width_um",
         ):
             _finite(getattr(self, name), name, positive=True)
         if len(self.direction_xy) != 2:
@@ -165,19 +174,25 @@ class OperatingPointSegment:
         path_length = hypot(path_dx, path_dy)
         if abs(path_length - self.length_um) > max(1e-6, self.length_um * 1e-6):
             raise ValueError("path endpoints must agree with length_um")
-        if path_length <= 0 or abs(path_dx / path_length - dx) > 1e-6 or abs(
-            path_dy / path_length - dy
-        ) > 1e-6:
+        if (
+            path_length <= 0
+            or abs(path_dx / path_length - dx) > 1e-6
+            or abs(path_dy / path_length - dy) > 1e-6
+        ):
             raise ValueError("direction_xy must point from path_start to path_end")
         if len(self.sensor_shape_yx) != 2 or any(
             isinstance(v, bool) or not isinstance(v, int) or v < 1
             for v in self.sensor_shape_yx
         ):
             raise ValueError("sensor_shape_yx must contain positive integer dimensions")
-        if len(self.sensor_roi_xywh) != 4 or any(
-            isinstance(v, bool) or not isinstance(v, int) or v < 0
-            for v in self.sensor_roi_xywh
-        ) or min(self.sensor_roi_xywh[2:]) < 1:
+        if (
+            len(self.sensor_roi_xywh) != 4
+            or any(
+                isinstance(v, bool) or not isinstance(v, int) or v < 0
+                for v in self.sensor_roi_xywh
+            )
+            or min(self.sensor_roi_xywh[2:]) < 1
+        ):
             raise ValueError("sensor_roi_xywh must be a valid x,y,width,height")
         if len(self.binning_yx) != 2 or any(
             isinstance(v, bool) or not isinstance(v, int) or v < 1
@@ -245,7 +260,11 @@ class OperatingPointSegment:
             delivered_width = width // bin_x
             delivered_height = height // bin_y
             axis_limit = delivered_width if self.slit_axis == "x" else delivered_height
-            if self.slit_start_px + self.slit_width_px > axis_limit:
+            slit_start_px = self.slit_start_px
+            slit_width_px = self.slit_width_px
+            if slit_start_px is None or slit_width_px is None:
+                raise ValueError("virtual slit requires a start and width")
+            if slit_start_px + slit_width_px > axis_limit:
                 raise ValueError("virtual slit exceeds the delivered sensor ROI")
 
     @property
@@ -396,8 +415,12 @@ class OperatingPointRequest:
     def __post_init__(self) -> None:
         """Require stable run provenance and uniquely identified segments."""
         for name in (
-            "run_id", "recipe_id", "recipe_version", "software_version",
-            "coordinate_frame", "decision_timestamp_utc",
+            "run_id",
+            "recipe_id",
+            "recipe_version",
+            "software_version",
+            "coordinate_frame",
+            "decision_timestamp_utc",
         ):
             value = getattr(self, name)
             if not isinstance(value, str) or not value.strip():
@@ -520,8 +543,11 @@ class OperatingPointCapabilities:
         ):
             raise ValueError("sensor_shape_yx must contain positive integer dimensions")
         for name in (
-            "max_velocity_um_s", "max_acceleration_um_s2", "min_exposure_s",
-            "max_exposure_s", "min_frame_period_s",
+            "max_velocity_um_s",
+            "max_acceleration_um_s2",
+            "min_exposure_s",
+            "max_exposure_s",
+            "min_frame_period_s",
         ):
             _finite(getattr(self, name), name, positive=True)
         if self.min_exposure_s > self.max_exposure_s:
@@ -575,7 +601,9 @@ class OperatingPointCapabilities:
         if value["schema"] != "redsun-planner-operating-point-capabilities-v1":
             raise ValueError("unsupported operating-point capabilities schema")
         for name in (
-            "sensor_shape_yx", "supported_trigger_modes", "stage_bounds_xy_um"
+            "sensor_shape_yx",
+            "supported_trigger_modes",
+            "stage_bounds_xy_um",
         ):
             if not isinstance(value[name], (list, tuple)):
                 raise TypeError(f"{name} must be a JSON array")

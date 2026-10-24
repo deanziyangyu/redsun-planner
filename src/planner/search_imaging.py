@@ -15,12 +15,12 @@ resolution fields, so the survey may run at the focused magnification.
 from __future__ import annotations
 
 # Host plan widgets resolve these plan annotations at runtime.
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence  # noqa: TC003
 from dataclasses import dataclass
 from math import ceil, isfinite
 from typing import Any
 
-from bluesky.utils import MsgGenerator
+from bluesky.utils import MsgGenerator  # noqa: TC002
 
 from .acquisition_space import (
     AcquisitionEnvelope,

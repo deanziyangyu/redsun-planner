@@ -170,9 +170,7 @@ def assess_roi_event_transition(
         raise ValueError("ROI event precedes the motion fit freshness evaluation")
     extrapolation_s = (event.event_time_monotonic_ns - newest_ns) * 1e-9
     mapping_uncertainty_s = event.time_mapping_uncertainty_ns * 1e-9
-    post_evaluation_s = (
-        event.event_time_monotonic_ns - freshness_reference_ns
-    ) * 1e-9
+    post_evaluation_s = (event.event_time_monotonic_ns - freshness_reference_ns) * 1e-9
     event_age_s = (
         motion.maximum_sample_age_s + post_evaluation_s + mapping_uncertainty_s
     )

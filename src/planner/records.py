@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
     from .review import ReviewManifest
 
 from .contracts import (
