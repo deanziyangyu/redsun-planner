@@ -156,42 +156,9 @@ keep host policy at the application edge.
 
 The in-page figures isolate one view each. The
 [full architecture graph](architecture-full.svg) puts the module groups, execution
-path and review loop in one SVG; open it at full size rather than scaling it into
-the column.
-
-<details>
-<summary>Mermaid source for the full graph</summary>
-
-```mermaid
-%%{init: {"theme": "base", "themeVariables": {"fontSize": "16px"}, "flowchart": {"nodeSpacing": 28, "rankSpacing": 60, "padding": 10}, "themeCSS": ".nodeLabel { font-size: 16px; } .cluster-label .nodeLabel { font-size: 16px; } .edgeLabel { font-size: 13px; }"}}%%
-flowchart LR
-    host["Redsun host<br/>plan widget, plan map,<br/>device binder"]
-
-    recipes["recipes + geometry<br/>scanning, geometry, search_imaging,<br/>bounded_scanning, hand_eye,<br/>observed_coverage, detection"]
-    contracts["contracts + protocols<br/>AcquisitionPoint, Envelope,<br/>Calibration, Region, Phase, targets<br/>LiveFlyer, XYMotor (host devices)"]
-    model["model + policy<br/>acquisition_space, operating_map,<br/>speed_policy, intensity_events,<br/>roi_decision, braking, motion_state"]
-    descriptors["descriptors<br/>PLAN_BLOCKS, get_plan_block"]
-
-    generators["plan generators<br/>plans, search_imaging,<br/>operating_schedule<br/>validate inputs, then yield Msg"]
-
-    messages["Bluesky messages<br/>open_run, stage, prepare, kickoff,<br/>complete, collect, mv, trigger/read"]
-    runtime["AcquisitionPresenter<br/>+ session RunEngine<br/>+ ophyd-async clients, services"]
-    records["documents to records + reports<br/>planner-run-v3, planner-replay-v3,<br/>review page, throughput HTML"]
-
-    host --> recipes
-    host --> contracts
-    host --> model
-    recipes --> generators
-    contracts --> generators
-    model --> generators
-    descriptors -. "describes" .-> generators
-    generators -->|"yield Msg"| messages
-    messages --> runtime
-    runtime -->|"documents"| records
-    records -. "review decision" .-> host
-```
-
-</details>
+path and review loop in one hand-authored component map; open it at full size rather
+than scaling it into the column. Edit that SVG directly: it is not a Mermaid render,
+and the compact Mermaid figures above remain the editable in-page views.
 
 ## Related pages
 
