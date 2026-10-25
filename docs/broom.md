@@ -107,3 +107,9 @@ change any timing estimate.
 - `exposure_s`, `readout_s` and `overhead_s` do not change the stage time; they
   are retained for provenance.
 - The model assumes a full-field raster, not a sample-only route.
+
+## Related
+
+- [Adaptive broom plan](adaptive_broom.md) is the host-bound,
+  intensity-driven raster plan; this page remains the declared-speed timing
+  model.

@@ -23,6 +23,12 @@ from .acquisition_space import (
     metrics_of,
     rank_by_utility,
 )
+from .adaptive_broom import (
+    AdaptiveBroomFrameRecord,
+    AdaptiveBroomResult,
+    AdaptiveBroomSpec,
+    adaptive_broom_plan,
+)
 from .braking import (
     CalibratedRoiBrakingAssessment,
     RoiBrakingAssessment,
@@ -196,6 +202,9 @@ __all__ = [
     "AcquisitionSettings",
     "ActionRecord",
     "ActionStatus",
+    "AdaptiveBroomFrameRecord",
+    "AdaptiveBroomResult",
+    "AdaptiveBroomSpec",
     "AveragedMetrics",
     "AxisBand",
     "AxisThreshold",
@@ -289,6 +298,7 @@ __all__ = [
     "assess_measurement",
     "assess_roi_braking",
     "assess_roi_event_transition",
+    "adaptive_broom_plan",
     "apply_review_checkpoint",
     "assess_operating_point_request",
     "blend_intensity_to_speed",

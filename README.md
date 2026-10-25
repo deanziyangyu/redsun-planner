@@ -215,6 +215,7 @@ defines that v1 record contract.
 - [Acquisition-space model](docs/acquisition_space.md)
 - [Search-and-image simulation](docs/simulation.md)
 - [Adaptive broom timing](docs/broom.md)
+- [Adaptive broom plan](docs/adaptive_broom.md)
 - [Observed coverage handoff](docs/observed_coverage.md)
 - [Plan-block descriptors](docs/plan_blocks.md)
 
