@@ -123,7 +123,7 @@ Unknown keys are rejected at every level.
 | Records, replay and checkpoints | `planner.records`, `planner.replay` |
 | Operator review metadata | `planner.review` |
 | Hand-eye fit and quality gates | `planner.hand_eye` |
-| Calculations | `planner.acquisition_space`, `planner.simulation`, `planner.broom`, `planner.detection`, `planner.observed_coverage`, `planner.motion_state`, `planner.speed_policy`, `planner.intensity_events`, `planner.roi_decision`, `planner.braking` |
+| Calculations | `planner.acquisition_space`, `planner.simulation`, `planner.broom`, `planner.detection`, `planner.observed_coverage`, `planner.motion_state`, `planner.speed_policy`, `planner.intensity_events`, `planner.onset_policy`, `planner.roi_decision`, `planner.braking` |
 | SPARTA framework | `planner.sparta`, `planner.operating_map` |
 | Operating-point schedule to Bluesky plan | `planner.operating_schedule` |
 | Structural device contracts | `planner.protocols` |
@@ -137,6 +137,11 @@ ROI origin, extent, readout mode and host-defined signal metric with each trace;
 [ROI-associated intensity traces](docs/intensity_roi_trace.md). The same signal
 logic covers edge, slit and full-sensor regions and accepts scalar outputs from
 different integration methods.
+
+For the stepped decision that turns such a rise into coarse or dense increments,
+see [the onset policy](docs/onset_policy.md): it declares which sensor edge leads
+for the travel direction, releases on the matched trailing band, and bounds the
+dense stretch with a per-traverse distance budget.
 
 For exposure-to-position association from an explicit constant-velocity
 segment, see [commanded motion context](docs/commanded_motion.md). The result is
@@ -216,6 +221,7 @@ defines that v1 record contract.
 - [Search-and-image simulation](docs/simulation.md)
 - [Adaptive broom timing](docs/broom.md)
 - [Adaptive broom plan](docs/adaptive_broom.md)
+- [Onset policy for stepped search-to-detail moves](docs/onset_policy.md)
 - [Observed coverage handoff](docs/observed_coverage.md)
 - [Plan-block descriptors](docs/plan_blocks.md)
 
