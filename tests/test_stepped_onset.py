@@ -18,6 +18,7 @@ from planner import (
     OnsetPolicyConfig,
     SteppedOnsetFrameRecord,
     SteppedOnsetSpec,
+    get_plan_block,
     stepped_onset_plan,
 )
 from planner.intensity_events import IntensityRiseConfig
@@ -294,5 +295,59 @@ def test_plan_argument_validation() -> None:
                 camera=_FakeCamera(),
                 band_densities_of_frame=bands,
                 md={"planner_scan_mode": "other"},
+            )
+        )
+
+
+def test_the_plan_block_is_registered() -> None:
+    block = get_plan_block("planner.stepped_onset")
+
+    assert block.plan_stub is stepped_onset_plan
+    assert block.resource_requirements
+    assert [parameter.name for parameter in block.parameters] == [
+        "spec",
+        "stage_xy",
+        "camera",
+        "band_densities_of_frame",
+        "on_frame",
+        "readables",
+        "md",
+        "stream_name",
+        "trigger_camera",
+    ]
+
+
+def test_a_capture_mode_traverse_never_triggers_the_camera() -> None:
+    camera = _FakeCamera()
+    engine = RunEngine({})
+    bands = _bands(_FEATURE_BANDS)
+    holder: dict[str, Any] = {}
+
+    def run_plan() -> Any:
+        result = yield from stepped_onset_plan(
+            _spec(),
+            stage_xy=_FakeStage(),
+            camera=camera,
+            band_densities_of_frame=bands,
+            trigger_camera=False,
+        )
+        holder["result"] = result
+
+    engine(run_plan())
+
+    assert camera.frames == 0
+    assert holder["result"].frame_count > 0
+
+
+def test_a_non_boolean_trigger_flag_is_refused() -> None:
+    engine = RunEngine({})
+    with pytest.raises(TypeError, match="trigger_camera"):
+        engine(
+            stepped_onset_plan(
+                _spec(),
+                stage_xy=_FakeStage(),
+                camera=_FakeCamera(),
+                band_densities_of_frame=_bands(_FEATURE_BANDS),
+                trigger_camera="yes",  # type: ignore[arg-type]
             )
         )

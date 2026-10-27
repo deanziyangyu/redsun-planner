@@ -293,6 +293,7 @@ def stepped_onset_plan(
     readables: Sequence[Any] = (),
     md: Mapping[str, Any] | None = None,
     stream_name: str = "stepped_onset",
+    trigger_camera: bool = True,
 ) -> MsgGenerator[SteppedOnsetResult]:
     """Run one bounded stepped traverse under the causal band policy.
 
@@ -301,6 +302,12 @@ def stepped_onset_plan(
     ``None`` when the host could not measure it; the policy then holds and the
     plan records a zero step instead of advancing. Reaching ``max_frames`` or a
     blocked-observation outcome sets ``truncated`` and a ``stopped_reason``.
+
+    With ``trigger_camera=False`` the plan does not trigger the camera: a host
+    that runs a free-running finite capture reads the frame it wants itself in
+    ``band_densities_of_frame`` and is responsible for the settle before that
+    read. The camera is still read into each event, so the recorded evidence is
+    the same shape either way.
     """
     if not isinstance(spec, SteppedOnsetSpec):
         raise TypeError("spec must be a SteppedOnsetSpec")
@@ -312,6 +319,8 @@ def stepped_onset_plan(
         raise TypeError("band_densities_of_frame must be a callable plan")
     if on_frame is not None and not callable(on_frame):
         raise TypeError("on_frame must be callable")
+    if not isinstance(trigger_camera, bool):
+        raise TypeError("trigger_camera must be a boolean")
     if not stream_name:
         raise ValueError("stream_name must not be empty")
 
@@ -335,6 +344,7 @@ def stepped_onset_plan(
             },
             "planner_stepped_onset_policy_id": spec.policy.policy_id,
             "planner_stepped_onset_max_frames": spec.max_frames,
+            "planner_stepped_onset_trigger_camera": trigger_camera,
         },
     )
     record_readable = _FrameRecordReadable()
@@ -367,7 +377,8 @@ def stepped_onset_plan(
                 stopped_reason = "max_frames"
                 return
             yield from bps.mv(stage_xy, (x_um, y_um))
-            yield from bps.trigger(camera, wait=True)
+            if trigger_camera:
+                yield from bps.trigger(camera, wait=True)
             densities = yield from band_densities_of_frame(frame_index)
             if not isinstance(densities, (tuple, list)) or len(densities) != 2:
                 raise TypeError(
