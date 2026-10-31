@@ -198,3 +198,150 @@ def test_the_plan_block_is_registered() -> None:
 
     assert block.plan_stub is adaptive_broom_plan
     assert block.resource_requirements
+
+
+def _braking_spec(
+    *, dwell: int = 2, threshold: float | None = None
+) -> AdaptiveBroomSpec:
+    """Return a spec whose brake holds each slow frame for *dwell* frames."""
+    return AdaptiveBroomSpec(
+        origin_xy_um=(0.0, 0.0),
+        field_size_um=(8.0, 2.0),
+        stage_envelope_xy_um=((-5.0, -5.0), (50.0, 50.0)),
+        row_pitch_um=2.0,
+        frame_period_s=0.1,
+        slow_speed_um_s=5.0,
+        fast_speed_um_s=20.0,
+        stage_max_speed_um_s=2000.0,
+        brake_dwell_frames=dwell,
+        brake_interest_threshold=threshold,
+        config=SpeedBlendConfig(smoothing_frames=1, max_acceleration_um_s2=10_000),
+    )
+
+
+def test_the_brake_holds_every_slow_frame_without_advancing() -> None:
+    result, _documents = _run([0.0, 1.0, 1.0], _braking_spec(dwell=2))
+
+    held = [record for record in result.records if record.dwell_index]
+    assert result.brake_count >= 1
+    assert held
+    for record in held:
+        assert record.commanded_speed_um_s == 0.0
+        assert record.step_um == 0.0
+        assert record.dwell_index >= 1
+    # Every held frame shares its point with the frame that took the brake, and holds only
+    # follow a frame the policy had already slowed.
+    by_index = {record.frame_index: record for record in result.records}
+    for record in held:
+        brake_frame = by_index[record.frame_index - record.dwell_index]
+        assert (record.x_um, record.y_um) == (brake_frame.x_um, brake_frame.y_um)
+        assert brake_frame.commanded_speed_um_s == result.spec.slow_speed_um_s
+
+
+def test_a_held_run_records_more_frames_and_holds_none_when_disabled() -> None:
+    flat_with_brake, _ = _run([1.0], _braking_spec(dwell=2))
+    flat_without, _ = _run([1.0], _spec())
+
+    assert flat_with_brake.brake_count > 0
+    assert flat_without.brake_count == 0
+    assert all(record.dwell_index == 0 for record in flat_without.records)
+    assert flat_with_brake.frame_count > flat_without.frame_count
+
+
+def test_the_hold_is_capped_by_the_frame_budget() -> None:
+    result, _documents = _run([1.0], _braking_spec(dwell=5))
+
+    capped = AdaptiveBroomSpec(
+        origin_xy_um=(0.0, 0.0),
+        field_size_um=(8.0, 2.0),
+        stage_envelope_xy_um=((-5.0, -5.0), (50.0, 50.0)),
+        row_pitch_um=2.0,
+        frame_period_s=0.1,
+        slow_speed_um_s=5.0,
+        fast_speed_um_s=20.0,
+        stage_max_speed_um_s=2000.0,
+        max_frames=4,
+        brake_dwell_frames=5,
+    )
+    truncated, _ = _run([1.0], capped)
+    assert truncated.truncated is True
+    assert truncated.frame_count == 4
+    assert result.frame_count > 4
+
+
+def test_a_brake_threshold_below_the_policy_fast_threshold_is_refused() -> None:
+    with pytest.raises(ValueError, match="interest_fast_threshold"):
+        _braking_spec(threshold=0.01)
+
+
+def test_the_brake_defaults_to_the_policy_slow_threshold() -> None:
+    spec = _braking_spec()
+
+    assert spec.brake_interest_threshold == pytest.approx(
+        spec.config.interest_slow_threshold
+    )
+
+
+def test_the_frame_table_reports_the_hold_state() -> None:
+    result, documents = _run([1.0], _braking_spec(dwell=1))
+
+    events = [doc for name, doc in documents if name == "event"]
+    dwells = [
+        doc["data"]["adaptive_dwell_index"]
+        for doc in events
+        if "adaptive_dwell_index" in doc["data"]
+    ]
+    assert len(dwells) == result.frame_count
+    assert dwells == [record.dwell_index for record in result.records]
+    brake = documents[0][1]["planner_adaptive_brake"]
+    assert brake["dwell_frames"] == 1
+    assert brake["kind"] == "step-cancel"
+
+
+class _CountingAxis(SynAxis):
+    """Axis that records how many times it was commanded."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.sets = 0
+
+    def set(self, value: float) -> Any:
+        """Count the command and forward it."""
+        self.sets += 1
+        return super().set(value)
+
+
+def test_a_single_row_raster_commands_the_idle_axis_once() -> None:
+    x = _CountingAxis(name="counted_x", value=0.0, egu="um")
+    y = _CountingAxis(name="counted_y", value=0.0, egu="um")
+    camera = _FakeCamera()
+    spec = AdaptiveBroomSpec(
+        origin_xy_um=(0.0, 0.0),
+        field_size_um=(8.0, 1.0),
+        stage_envelope_xy_um=((-5.0, -5.0), (50.0, 50.0)),
+        row_pitch_um=2.0,
+        frame_period_s=0.1,
+        slow_speed_um_s=5.0,
+        fast_speed_um_s=20.0,
+        stage_max_speed_um_s=2000.0,
+        max_frames=100,
+        config=SpeedBlendConfig(smoothing_frames=1, max_acceleration_um_s2=10_000),
+    )
+    holder: dict[str, Any] = {}
+
+    def run_plan() -> Generator[Any, None, None]:
+        holder["result"] = yield from adaptive_broom_plan(
+            spec,
+            stage_x=x,
+            stage_y=y,
+            camera=camera,
+            intensity_of_frame=_intensity_plan([0.0]),
+        )
+
+    RunEngine({})(run_plan())
+    result = holder["result"]
+
+    # y never changes inside one row, so it is commanded once and x once per frame: a
+    # restated target on a host that skips it would leave the client waiting forever.
+    assert y.sets == 1
+    assert x.sets == result.frame_count

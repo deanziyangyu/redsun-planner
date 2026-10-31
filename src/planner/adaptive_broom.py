@@ -14,6 +14,15 @@ things: :func:`adaptive_broom_plan` asks for each frame's intensity through
 ``intensity_of_frame``, sends the commanded speed through ``command_speed``, and
 receives one :class:`AdaptiveBroomFrameRecord` per frame through ``on_frame`` and
 the plan's return value.
+
+An optional brake turns a slow request into a hold: when the smoothed interest
+reaches the brake threshold the raster stops advancing for
+``brake_dwell_frames`` frames and keeps imaging the same field, then continues
+along the row. That is the only brake a staged raster can honestly offer - the
+stage is already at rest between frames, so the plan cancels the step it was
+about to take rather than decelerating a moving stage. A controller that can
+change velocity inside a traverse needs its own measured brake budget; see the
+acquisition host's live-brake evidence.
 """
 
 from __future__ import annotations
@@ -44,6 +53,7 @@ _RESERVED_METADATA = (
     "planner_adaptive_intensity_scale",
     "planner_adaptive_row_count",
     "planner_adaptive_max_frames",
+    "planner_adaptive_brake",
 )
 
 
@@ -100,6 +110,14 @@ class AdaptiveBroomSpec:
     ``stage_envelope_xy_um``, an absolute stage-coordinate box. ``slow`` and
     ``fast`` are the intensity-policy bounds, and ``fast`` may not exceed
     ``stage_max_speed_um_s``.
+
+    ``brake_dwell_frames`` enables the hold: zero keeps the plain raster, and a
+    positive count holds each slow frame for that many extra frames at the same
+    point. ``brake_interest_threshold`` defaults to the policy's slow threshold,
+    so the hold begins exactly where the policy has already asked for the slow
+    speed; a declared value must not be below the policy's fast threshold,
+    because a brake that fires while the policy still wants search speed would
+    spend frames on background.
     """
 
     origin_xy_um: Point
@@ -112,6 +130,8 @@ class AdaptiveBroomSpec:
     stage_max_speed_um_s: float
     intensity_scale: float = 1.0
     max_frames: int = 20000
+    brake_dwell_frames: int = 0
+    brake_interest_threshold: float | None = None
     config: SpeedBlendConfig = SpeedBlendConfig()
 
     def __post_init__(self) -> None:
@@ -162,6 +182,30 @@ class AdaptiveBroomSpec:
             raise ValueError("max_frames must be a positive integer")
         if not isinstance(self.config, SpeedBlendConfig):
             raise TypeError("config must be a SpeedBlendConfig")
+        if (
+            isinstance(self.brake_dwell_frames, bool)
+            or not isinstance(self.brake_dwell_frames, int)
+            or self.brake_dwell_frames < 0
+        ):
+            raise ValueError("brake_dwell_frames must be a nonnegative integer")
+        if self.brake_interest_threshold is not None:
+            threshold = _finite(
+                self.brake_interest_threshold,
+                "brake_interest_threshold",
+                positive=False,
+            )
+            if threshold > 1.0:
+                raise ValueError("brake_interest_threshold must not exceed 1")
+            if threshold < self.config.interest_fast_threshold:
+                raise ValueError(
+                    "brake_interest_threshold must not be below the policy's "
+                    "interest_fast_threshold, which still requests search speed"
+                )
+            object.__setattr__(self, "brake_interest_threshold", threshold)
+        if self.brake_dwell_frames and self.brake_interest_threshold is None:
+            object.__setattr__(
+                self, "brake_interest_threshold", self.config.interest_slow_threshold
+            )
         origin_x, origin_y = self.origin_xy_um
         width, height = self.field_size_um
         if (
@@ -186,23 +230,31 @@ class AdaptiveBroomSpec:
     def frame_count_bounds(self) -> tuple[int, int]:
         """Estimated minimum and maximum frame counts over the raster.
 
-        The count is not fixed: it follows the commanded speed. These bounds
-        bracket the along-row step by the fast and slow speeds.
+        The count is not fixed: it follows the commanded speed and, when the
+        brake is enabled, the held frames it adds. These bounds bracket the
+        along-row step by the fast and slow speeds and reserve the declared hold
+        for every slow frame.
         """
         width, _ = self.field_size_um
         fast_step = self.fast_speed_um_s * self.frame_period_s
         slow_step = self.slow_speed_um_s * self.frame_period_s
         per_row_fast = max(1, int(ceil(width / fast_step)) + 1)
         per_row_slow = max(1, int(ceil(width / slow_step)) + 1)
+        hold = 1 + self.brake_dwell_frames
         return (
             self.row_count * per_row_fast,
-            min(self.max_frames, self.row_count * per_row_slow),
+            min(self.max_frames, self.row_count * per_row_slow * hold),
         )
 
 
 @dataclass(frozen=True)
 class AdaptiveBroomFrameRecord:
-    """One frame's position, intensity evidence and commanded speed."""
+    """One frame's position, intensity evidence and commanded speed.
+
+    ``dwell_index`` is zero for a frame that advances the raster and 1..N for the
+    held frames of a brake, whose ``step_um`` is zero because the stage stays
+    where the braking frame left it.
+    """
 
     frame_index: int
     row: int
@@ -215,6 +267,7 @@ class AdaptiveBroomFrameRecord:
     desired_speed_um_s: float
     commanded_speed_um_s: float
     step_um: float
+    dwell_index: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-safe per-frame record."""
@@ -230,6 +283,7 @@ class AdaptiveBroomFrameRecord:
             "desired_speed_um_s": self.desired_speed_um_s,
             "commanded_speed_um_s": self.commanded_speed_um_s,
             "step_um": self.step_um,
+            "dwell_index": self.dwell_index,
         }
 
 
@@ -241,6 +295,7 @@ class AdaptiveBroomResult:
     records: tuple[AdaptiveBroomFrameRecord, ...]
     rows: int
     truncated: bool
+    brake_count: int = 0
 
     @property
     def frame_count(self) -> int:
@@ -264,6 +319,7 @@ class _FrameRecordReadable:
         "adaptive_desired_speed_um_s",
         "adaptive_speed_um_s",
         "adaptive_step_um",
+        "adaptive_dwell_index",
     )
 
     def __init__(self) -> None:
@@ -288,6 +344,7 @@ class _FrameRecordReadable:
             record.desired_speed_um_s,
             record.commanded_speed_um_s,
             record.step_um,
+            record.dwell_index,
         )
         return {
             key: {"value": value, "timestamp": 0.0}
@@ -342,6 +399,13 @@ def adaptive_broom_plan(
     request both bounds the policy and sets the along-row sampling. Because the
     last frame of a row lands within one step of the edge, the plan claims row
     coverage within that step, not exact edge coverage.
+
+    With ``spec.brake_dwell_frames`` the plan also holds: when the smoothed
+    interest reaches ``spec.brake_interest_threshold`` it keeps imaging the same
+    field for that many frames, each with a zero step and a zero speed request,
+    before it advances. The hold is a cancelled step, not a deceleration - the
+    stage is at rest between frames on this raster - and the result counts the
+    holds in ``brake_count``.
     """
     if not isinstance(spec, AdaptiveBroomSpec):
         raise TypeError("spec must be an AdaptiveBroomSpec")
@@ -382,6 +446,8 @@ def adaptive_broom_plan(
                 "stage_max_speed_um_s": spec.stage_max_speed_um_s,
                 "intensity_scale": spec.intensity_scale,
                 "max_frames": spec.max_frames,
+                "brake_dwell_frames": spec.brake_dwell_frames,
+                "brake_interest_threshold": spec.brake_interest_threshold,
                 "config": {
                     "interest_fast_threshold": spec.config.interest_fast_threshold,
                     "interest_slow_threshold": spec.config.interest_slow_threshold,
@@ -401,6 +467,15 @@ def adaptive_broom_plan(
             "planner_adaptive_intensity_scale": spec.intensity_scale,
             "planner_adaptive_row_count": spec.row_count,
             "planner_adaptive_max_frames": spec.max_frames,
+            "planner_adaptive_brake": (
+                None
+                if not spec.brake_dwell_frames
+                else {
+                    "kind": "step-cancel",
+                    "dwell_frames": spec.brake_dwell_frames,
+                    "interest_threshold": spec.brake_interest_threshold,
+                }
+            ),
         },
     )
 
@@ -418,6 +493,10 @@ def adaptive_broom_plan(
     right = origin_x + width
     frame_index = 0
     truncated = False
+    brake_count = 0
+    last_x: float | None = None
+    last_y: float | None = None
+    brake_threshold = spec.brake_interest_threshold
 
     def emit(record: AdaptiveBroomFrameRecord) -> Iterable[Any]:
         record_readable.update(record)
@@ -432,13 +511,38 @@ def adaptive_broom_plan(
         yield from bps.save()
 
     def move(x_um: float, y_um: float) -> Iterable[Any]:
+        # Only the axes this move changes are commanded. A host stage may treat a restated
+        # target as a no-op and skip it, and then a residual of one controller count on the
+        # idle axis is never corrected: measured 2026-10-31 on the native ASI stage, a raster
+        # whose y stayed at 2517.14 um hung for the 60 s move timeout on the nineteenth frame
+        # because y read back 2517.32 um and no command would ever change it.
+        nonlocal last_x, last_y
         if stage_xy is not None:
             yield from bps.mv(stage_xy, (x_um, y_um))
-        else:
+            last_x, last_y = x_um, y_um
+            return
+        y_changed = last_y is None or y_um != last_y
+        if y_changed:
             yield from bps.mv(stage_x, x_um, stage_y, y_um)
+            last_y = y_um
+        else:
+            yield from bps.mv(stage_x, x_um)
+        last_x = x_um
+
+    def checked_intensity(raw: object) -> float:
+        """Validate one host-supplied intensity measure."""
+        if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+            raise TypeError(
+                "intensity_of_frame must return a real number, not "
+                f"{type(raw).__name__}"
+            )
+        intensity = float(raw)
+        if not isfinite(intensity) or intensity < 0:
+            raise ValueError("intensity_of_frame values must be finite and nonnegative")
+        return intensity
 
     def body() -> Iterable[Any]:
-        nonlocal frame_index, truncated
+        nonlocal frame_index, truncated, brake_count
         for row in range(spec.row_count):
             y_um = origin_y + row * spec.row_pitch_um
             if y_um > origin_y + height + 1e-9:
@@ -453,17 +557,9 @@ def adaptive_broom_plan(
                 yield from move(x_um, y_um)
                 yield from bps.trigger(camera, wait=True)
                 frame_index += 1
-                raw = yield from intensity_of_frame(frame_index)
-                if isinstance(raw, bool) or not isinstance(raw, (int, float)):
-                    raise TypeError(
-                        "intensity_of_frame must return a real number, not "
-                        f"{type(raw).__name__}"
-                    )
-                intensity = float(raw)
-                if not isfinite(intensity) or intensity < 0:
-                    raise ValueError(
-                        "intensity_of_frame values must be finite and nonnegative"
-                    )
+                intensity = checked_intensity(
+                    (yield from intensity_of_frame(frame_index))
+                )
                 interest = min(1.0, intensity / spec.intensity_scale)
                 proposal = controller.update(interest)
                 commanded = min(
@@ -490,6 +586,45 @@ def adaptive_broom_plan(
                     step_um=step_um,
                 )
                 yield from emit(record)
+                if (
+                    spec.brake_dwell_frames
+                    and brake_threshold is not None
+                    and proposal.smoothed_interest >= brake_threshold
+                ):
+                    # The brake latches this point: the raster does not advance, and every
+                    # held frame commands a zero step so the host's speed port cannot move it
+                    # either. The policy decision is latched with it, because re-evaluating it
+                    # inside the hold would let the hold shorten itself.
+                    brake_count += 1
+                    for dwell in range(1, spec.brake_dwell_frames + 1):
+                        if frame_index >= spec.max_frames:
+                            truncated = True
+                            return
+                        yield from bps.trigger(camera, wait=True)
+                        frame_index += 1
+                        held_intensity = checked_intensity(
+                            (yield from intensity_of_frame(frame_index))
+                        )
+                        if command_speed is not None:
+                            yield from command_speed(0.0)
+                        yield from emit(
+                            AdaptiveBroomFrameRecord(
+                                frame_index=frame_index,
+                                row=row,
+                                column=column,
+                                x_um=x_um,
+                                y_um=y_um,
+                                intensity=held_intensity,
+                                interest=min(
+                                    1.0, held_intensity / spec.intensity_scale
+                                ),
+                                blend_fraction=proposal.blend_fraction,
+                                desired_speed_um_s=proposal.desired_speed_um_s,
+                                commanded_speed_um_s=0.0,
+                                step_um=0.0,
+                                dwell_index=dwell,
+                            )
+                        )
                 column += 1
                 x_um += -step_um if reverse else step_um
         return
@@ -501,6 +636,7 @@ def adaptive_broom_plan(
         records=tuple(records),
         rows=spec.row_count,
         truncated=truncated,
+        brake_count=brake_count,
     )
 
 
