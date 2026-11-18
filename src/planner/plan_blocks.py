@@ -12,6 +12,7 @@ from bluesky.utils import MsgGenerator
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
+from .adaptive_broom import adaptive_broom_plan
 from .contracts import ResourceRequirement
 from .operating_schedule import operating_point_schedule_plan
 from .plans import (
@@ -31,6 +32,7 @@ from .search_imaging import (
     focused_revisit_plan,
     survey_scan_plan,
 )
+from .stepped_onset import stepped_onset_plan
 
 
 @dataclass(frozen=True)
@@ -565,6 +567,204 @@ PLAN_BLOCKS = (
         failure_condition=(
             "The active flyer is stopped and available strip records are collected where "
             "possible; the host reconciles stage position and partial assets."
+        ),
+    ),
+    PlanBlockDescriptor(
+        block_id="planner.adaptive_broom",
+        contract_version=1,
+        plan_stub=adaptive_broom_plan,
+        summary=(
+            "Raster a bounded field and set each frame's stage speed from its "
+            "intensity signal."
+        ),
+        parameters=(
+            PlanParameterContract(
+                "spec",
+                "AdaptiveBroomSpec",
+                "Bounded raster geometry, declared envelope and speed policy bounds.",
+            ),
+            PlanParameterContract(
+                "stage_xy",
+                "ReadableMovable | None",
+                "Combined XY stage binding, if used.",
+                required=False,
+                has_default=True,
+            ),
+            PlanParameterContract(
+                "stage_x",
+                "Movable | None",
+                "Separate X stage axis, when stage_xy is not used.",
+                required=False,
+                has_default=True,
+            ),
+            PlanParameterContract(
+                "stage_y",
+                "Movable | None",
+                "Separate Y stage axis, when stage_xy is not used.",
+                required=False,
+                has_default=True,
+            ),
+            PlanParameterContract(
+                "camera", "Any", "Bluesky camera read into each frame event."
+            ),
+            PlanParameterContract(
+                "intensity_of_frame",
+                "Callable[[int], MsgGenerator[float]]",
+                "Host plan returning one finite nonnegative intensity per frame.",
+            ),
+            PlanParameterContract(
+                "command_speed",
+                "Callable[[float], Iterable[Any]] | None",
+                "Host plan that applies or records one commanded speed request.",
+                required=False,
+                has_default=True,
+            ),
+            PlanParameterContract(
+                "on_frame",
+                "Callable[[AdaptiveBroomFrameRecord], None] | None",
+                "Host callback receiving every per-frame record as it is produced.",
+                required=False,
+                has_default=True,
+            ),
+            PlanParameterContract(
+                "readables",
+                "Sequence[Readable]",
+                "Additional stage readbacks recorded with every frame.",
+                required=False,
+                has_default=True,
+                default=(),
+            ),
+            PlanParameterContract(
+                "md",
+                "Mapping[str, Any] | None",
+                "Additional run metadata; planner-owned keys are reserved.",
+                required=False,
+                has_default=True,
+            ),
+            PlanParameterContract(
+                "stream_name",
+                "str",
+                "Bluesky event stream name.",
+                required=False,
+                has_default=True,
+                default="adaptive_broom",
+            ),
+        ),
+        device_contracts=(
+            "Bluesky Readable/Movable stage",
+            "Bluesky Triggerable/Readable camera",
+        ),
+        resource_requirements=(
+            ResourceRequirement("stage"),
+            ResourceRequirement("camera"),
+            ResourceRequirement("storage"),
+        ),
+        physical_effects=("stage_motion", "image_acquisition", "speed_request"),
+        preconditions=(
+            "The host validates the field against its declared stage envelope and live limits.",
+            "The host binds an intensity source for each frame and a speed command channel.",
+            "Exactly one supported combined or separate XY stage binding is supplied.",
+        ),
+        completion_condition=(
+            "Every raster frame is captured with its intensity and commanded speed "
+            "recorded, and the run closes."
+        ),
+        failure_condition=(
+            "An interrupted move or capture may leave the stage at an intermediate "
+            "position; the host reconciles readbacks and partial frame records."
+        ),
+    ),
+    PlanBlockDescriptor(
+        block_id="planner.stepped_onset",
+        contract_version=1,
+        plan_stub=stepped_onset_plan,
+        summary=(
+            "Walk a bounded single-direction traverse in discrete steps chosen per "
+            "frame by the causal band onset policy."
+        ),
+        parameters=(
+            PlanParameterContract(
+                "spec",
+                "SteppedOnsetSpec",
+                "Bounded traverse, declared stage envelope and the onset policy.",
+            ),
+            PlanParameterContract(
+                "stage_xy",
+                "ReadableMovable",
+                "Combined XY stage binding moved to each recorded point.",
+            ),
+            PlanParameterContract(
+                "camera",
+                "Any",
+                "Bluesky triggerable camera read into each frame event.",
+            ),
+            PlanParameterContract(
+                "band_densities_of_frame",
+                "Callable[[int], MsgGenerator[tuple[float | None, float | None]]]",
+                "Host plan returning the leading and trailing band densities for the "
+                "frame just captured.",
+            ),
+            PlanParameterContract(
+                "on_frame",
+                "Callable[[SteppedOnsetFrameRecord], None] | None",
+                "Host callback receiving every per-frame record as it is produced.",
+                required=False,
+                has_default=True,
+            ),
+            PlanParameterContract(
+                "readables",
+                "Sequence[Readable]",
+                "Additional stage readbacks recorded with every frame.",
+                required=False,
+                has_default=True,
+                default=(),
+            ),
+            PlanParameterContract(
+                "md",
+                "Mapping[str, Any] | None",
+                "Additional run metadata; planner-owned keys are reserved.",
+                required=False,
+                has_default=True,
+            ),
+            PlanParameterContract(
+                "stream_name",
+                "str",
+                "Bluesky event stream name.",
+                required=False,
+                has_default=True,
+                default="stepped_onset",
+            ),
+            PlanParameterContract(
+                "trigger_camera",
+                "bool",
+                "Trigger the camera each frame; disable for a host-run finite capture.",
+                required=False,
+                has_default=True,
+                default=True,
+            ),
+        ),
+        device_contracts=(
+            "Bluesky Readable/Movable stage",
+            "Bluesky Triggerable/Readable camera",
+        ),
+        resource_requirements=(
+            ResourceRequirement("stage"),
+            ResourceRequirement("camera"),
+            ResourceRequirement("storage"),
+        ),
+        physical_effects=("stage_motion", "image_acquisition"),
+        preconditions=(
+            "The host validates the traverse against its declared stage envelope and live limits.",
+            "The host binds a band-density measurement over the delivered frames.",
+            "The policy direction agrees with the start-to-end sign.",
+        ),
+        completion_condition=(
+            "The traverse reaches its end, a hold exhausts the frame budget, or the "
+            "policy blocks on missing observations, and every frame record is emitted."
+        ),
+        failure_condition=(
+            "An interrupted move or capture may leave the stage at an intermediate "
+            "point; the host reconciles readbacks and partial frame records."
         ),
     ),
     PlanBlockDescriptor(

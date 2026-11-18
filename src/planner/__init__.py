@@ -23,6 +23,12 @@ from .acquisition_space import (
     metrics_of,
     rank_by_utility,
 )
+from .adaptive_broom import (
+    AdaptiveBroomFrameRecord,
+    AdaptiveBroomResult,
+    AdaptiveBroomSpec,
+    adaptive_broom_plan,
+)
 from .braking import (
     CalibratedRoiBrakingAssessment,
     RoiBrakingAssessment,
@@ -82,6 +88,20 @@ from .observed_coverage import (
     ObservedSnapGridFit,
     ObservedSnapTile,
     fit_snap_grid_to_coverage,
+)
+from .onset_policy import (
+    BandRows,
+    OnsetDirection,
+    OnsetMode,
+    OnsetObservation,
+    OnsetPolicy,
+    OnsetPolicyConfig,
+    OnsetProposal,
+    OnsetReason,
+    OnsetRelease,
+    OnsetState,
+    OnsetTrigger,
+    band_rows,
 )
 from .operating_map import (
     OperatingPoint,
@@ -184,6 +204,12 @@ from .speed_policy import (
     SpeedProposal,
     blend_intensity_to_speed,
 )
+from .stepped_onset import (
+    SteppedOnsetFrameRecord,
+    SteppedOnsetResult,
+    SteppedOnsetSpec,
+    stepped_onset_plan,
+)
 
 __all__ = [
     "CAPTURE_LABELS",
@@ -196,9 +222,13 @@ __all__ = [
     "AcquisitionSettings",
     "ActionRecord",
     "ActionStatus",
+    "AdaptiveBroomFrameRecord",
+    "AdaptiveBroomResult",
+    "AdaptiveBroomSpec",
     "AveragedMetrics",
     "AxisBand",
     "AxisThreshold",
+    "BandRows",
     "BroomReport",
     "BroomSpec",
     "CalibratedRoiBrakingAssessment",
@@ -233,6 +263,16 @@ __all__ = [
     "ObservedCoverage",
     "ObservedSnapGridFit",
     "ObservedSnapTile",
+    "OnsetDirection",
+    "OnsetMode",
+    "OnsetObservation",
+    "OnsetPolicy",
+    "OnsetPolicyConfig",
+    "OnsetProposal",
+    "OnsetReason",
+    "OnsetRelease",
+    "OnsetState",
+    "OnsetTrigger",
     "OperatingCorner",
     "OperatingPointCapabilities",
     "OperatingPointDecision",
@@ -276,6 +316,9 @@ __all__ = [
     "StagePositionObservation",
     "StageProfile",
     "StageScanRecipe",
+    "SteppedOnsetFrameRecord",
+    "SteppedOnsetResult",
+    "SteppedOnsetSpec",
     "StitchingPreview",
     "SurveySpec",
     "SurveyTile",
@@ -289,8 +332,10 @@ __all__ = [
     "assess_measurement",
     "assess_roi_braking",
     "assess_roi_event_transition",
+    "adaptive_broom_plan",
     "apply_review_checkpoint",
     "assess_operating_point_request",
+    "band_rows",
     "blend_intensity_to_speed",
     "broom_trace",
     "build_focused_recipe",
@@ -339,6 +384,7 @@ __all__ = [
     "simulate_search_imaging",
     "snap_scan_plan",
     "snap_traces",
+    "stepped_onset_plan",
     "stitching_preview",
     "survey_overscan_um",
     "survey_positions",

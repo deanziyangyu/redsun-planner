@@ -35,6 +35,7 @@ redsun-planner/
 |   |-- motion_state.py        stage motion estimation
 |   |-- speed_policy.py        intensity-to-speed calculation
 |   |-- intensity_events.py    ROI-associated intensity-rise detection
+|   |-- onset_policy.py        causal band onset/brake/release policy
 |   |-- roi_decision.py        ROI event to motion decision record
 |   |-- braking.py             ROI braking assessment
 |   `-- observed_coverage.py   observed-support coverage fit
